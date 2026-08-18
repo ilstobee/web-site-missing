@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useApp } from './store'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { CategoryGrid } from './components/CategoryGrid'
@@ -10,9 +11,16 @@ import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
 
 export default function App() {
+  const { recordVisit } = useApp()
   const [authOpen, setAuthOpen] = useState(false)
+  const [activeSphere, setActiveSphere] = useState('travel')
   const openAuth = () => setAuthOpen(true)
   const closeAuth = () => setAuthOpen(false)
+
+  const handleSphereChange = (id: string) => {
+    setActiveSphere(id)
+    recordVisit(id)
+  }
 
   return (
     <div id="top" className="min-h-svh wave-top">
@@ -25,8 +33,8 @@ export default function App() {
       <main>
         <Hero />
         <CategoryGrid
-          activeId="travel"
-          onActiveChange={() => {}}
+          activeId={activeSphere}
+          onActiveChange={handleSphereChange}
           onOpenAuth={openAuth}
         />
         <FeaturedTeams onOpenAuth={openAuth} />
