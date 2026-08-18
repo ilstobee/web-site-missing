@@ -134,6 +134,14 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
           </div>
           <button
             type="button"
+            className="absolute -left-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white text-brand shadow-md md:grid"
+            onClick={() => scroller.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+            aria-label="Назад"
+          >
+            ←
+          </button>
+          <button
+            type="button"
             className="absolute -right-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white text-brand shadow-md md:grid"
             onClick={() => scroller.current?.scrollBy({ left: 300, behavior: 'smooth' })}
             aria-label="Дальше"
