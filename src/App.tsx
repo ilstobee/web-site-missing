@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { CategoryGrid } from './components/CategoryGrid'
@@ -6,13 +7,18 @@ import { CreateBanner } from './components/CreateBanner'
 import { RecommendedTeams } from './components/RecommendedTeams'
 import { StatsBar } from './components/StatsBar'
 import { Footer } from './components/Footer'
+import { AuthModal } from './components/AuthModal'
 
 export default function App() {
+  const [authOpen, setAuthOpen] = useState(false)
+  const openAuth = () => setAuthOpen(true)
+  const closeAuth = () => setAuthOpen(false)
+
   return (
     <div id="top" className="min-h-svh wave-top">
       <div className="wave-strip" aria-hidden />
       <Header
-        onOpenAuth={() => {}}
+        onOpenAuth={openAuth}
         onOpenLK={() => {}}
         onOpenChat={() => {}}
       />
@@ -21,14 +27,15 @@ export default function App() {
         <CategoryGrid
           activeId="travel"
           onActiveChange={() => {}}
-          onOpenAuth={() => {}}
+          onOpenAuth={openAuth}
         />
-        <FeaturedTeams onOpenAuth={() => {}} />
-        <CreateBanner onOpenAuth={() => {}} />
+        <FeaturedTeams onOpenAuth={openAuth} />
+        <CreateBanner onOpenAuth={openAuth} />
         <RecommendedTeams />
         <StatsBar />
       </main>
       <Footer />
+      <AuthModal open={authOpen} onClose={closeAuth} onSuccess={() => {}} />
     </div>
   )
 }
