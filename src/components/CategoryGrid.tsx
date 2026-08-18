@@ -44,6 +44,12 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
   const active = allCategories.find((category) => category.id === activeId) ?? allCategories[0]
   const activeStats = sphereStats(active.id)
 
+  const sphereTeams = db.customTeams.filter(
+    (team) =>
+      team.sphereId === active.id ||
+      team.category.toLowerCase() === active.name.toLowerCase(),
+  )
+
   const visible = allCategories.slice(0, 6)
   const rest = allCategories.slice(6)
 
@@ -212,17 +218,34 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
 
             <div>
               <h4 className="text-sm font-extrabold text-ink">Команды, которые ищут тебя</h4>
-              {active.info.teams.length > 0 ? (
+              {sphereTeams.length > 0 ? (
                 <div className="mt-3 space-y-3">
-                  {active.info.teams.map((team) => (
+                  {sphereTeams.map((team) => (
                     <article
-                      key={team.name}
+                      key={team.id}
                       className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-[0_6px_16px_rgba(80,40,40,0.05)]"
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] font-extrabold text-ink">{team.name}</p>
-                        <p className="mt-1 text-[12px] text-muted">💼 Навыки: {team.skills}</p>
-                        <p className="mt-0.5 text-[12px] text-muted">⭐️ Рейтинг: {team.rating}</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        {team.image ? (
+                          <img
+                            src={team.image}
+                            alt=""
+                            className="h-12 w-16 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-extrabold text-ink">
+                            {team.title}
+                          </p>
+                          <p className="mt-1 text-[12px] text-muted">
+                            {team.city} · {team.difficulty} · {team.members}/{team.capacity} чел.
+                          </p>
+                          {team.tags.length > 0 ? (
+                            <p className="mt-0.5 truncate text-[12px] text-muted">
+                              #{team.tags.join(' #')}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
                       <a
                         href="#teams"
@@ -235,7 +258,7 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
                 </div>
               ) : (
                 <div className="mt-3 rounded-2xl bg-white p-5 text-[13px] font-medium text-muted">
-                  Пока нет команд —{' '}
+                  Пока нет команд в этой сфере —{' '}
                   <a href="#create" className="font-semibold text-brand hover:text-brand-dark">
                     создай первую
                   </a>{' '}
