@@ -1,0 +1,493 @@
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import type { Category } from './data'
+import { asset, categories as baseCategories } from './data'
+import { censor } from './profanity'
+
+export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
+
+export type User = {
+  id: string
+  name: string
+  surname: string
+  login: string
+  password: string
+  telegram: string
+  city: string
+  hobbies: string[]
+  createdAt: string
+}
+
+export type Review = {
+  id: string
+  sphereId: string
+  userId: string
+  authorName: string
+  rating: number
+  text: string
+  createdAt: string
+}
+
+export type Application = {
+  id: string
+  teamId: string
+  teamTitle: string
+  sphereId: string
+  sphereName: string
+  userId: string
+  userName: string
+  city: string
+  contacts: string
+  telegram: string
+  rating: string
+  review: string
+  status: 'pending' | 'accepted' | 'rejected'
+  createdAt: string
+}
+
+export type Notification = {
+  id: string
+  userId: string
+  text: string
+  read: boolean
+  createdAt: string
+}
+
+export type CustomCategory = {
+  id: string
+  name: string
+  creatorId: string
+  createdAt: string
+}
+
+export type CustomTeam = {
+  id: string
+  title: string
+  category: string
+  sphereId: string
+  description: string
+  city: string
+  difficulty: Difficulty
+  capacity: number
+  members: number
+  creatorId: string
+  creatorName: string
+  tags: string[]
+  createdAt: string
+}
+
+export type ChatMessage = {
+  id: string
+  authorName: string
+  text: string
+  createdAt: string
+}
+
+export type Visit = {
+  sphereId: string
+  userId: string
+  at: string
+}
+
+type DB = {
+  users: User[]
+  sessionUserId: string | null
+  reviews: Review[]
+  applications: Application[]
+  notifications: Notification[]
+  customCategories: CustomCategory[]
+  customTeams: CustomTeam[]
+  chat: ChatMessage[]
+  visits: Visit[]
+}
+
+export type RegisterInput = {
+  name: string
+  surname: string
+  login: string
+  password: string
+  telegram: string
+  city: string
+  hobbies: string[]
+}
+
+export type NewApplication = {
+  teamId: string
+  teamTitle: string
+  sphereId: string
+  sphereName: string
+  city: string
+  contacts: string
+  telegram: string
+  rating: string
+  review: string
+}
+
+export type NewTeam = {
+  title: string
+  category: string
+  sphereId: string
+  description: string
+  city: string
+  difficulty: Difficulty
+  capacity: number
+  tags: string[]
+}
+
+type AppContextValue = {
+  db: DB
+  user: User | null
+  allCategories: Category[]
+  register(input: RegisterInput): string | null
+  login(login: string, password: string): string | null
+  logout(): void
+  updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
+  changePassword(current: string, next: string): string | null
+  addReview(sphereId: string, rating: number, text: string): void
+  addApplication(input: NewApplication): void
+  setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
+  addCategory(name: string): string | null
+  addTeam(input: NewTeam): void
+  addChatMessage(text: string): void
+  recordVisit(sphereId: string): void
+  markAllNotificationsRead(): void
+  sphereStats(sphereId: string): { rating: number; reviews: number; activity: number }
+  sphereName(sphereId: string): string
+}
+
+const DB_KEY = 'missing_site_db_v1'
+
+const emptyDB: DB = {
+  users: [],
+  sessionUserId: null,
+  reviews: [],
+  applications: [],
+  notifications: [],
+  customCategories: [],
+  customTeams: [],
+  chat: [],
+  visits: [],
+}
+
+function loadDB(): DB {
+  if (typeof window === 'undefined') return emptyDB
+  try {
+    const raw = window.localStorage.getItem(DB_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<DB>
+      return { ...emptyDB, ...parsed }
+    }
+  } catch {
+    // ignore corrupted storage
+  }
+  return emptyDB
+}
+
+function uid(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+export function hashPassword(password: string): string {
+  let hash = 5381
+  for (let i = 0; i < password.length; i += 1) {
+    hash = (hash * 33) ^ password.charCodeAt(i)
+  }
+  return (hash >>> 0).toString(16)
+}
+
+export function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const CUSTOM_TINT = 'bg-[#fde4df]'
+
+function toCategory(custom: CustomCategory): Category {
+  return {
+    id: custom.id,
+    name: custom.name,
+    icon: asset('images/icons/more.png'),
+    tint: CUSTOM_TINT,
+    info: {
+      title: `Найди свою команду в сфере «${custom.name}»!`,
+      subtitle:
+        'Эта сфера добавлена участниками сообщества. Объединяйся, создавай команды и развивай направление вместе.',
+      spheres: [],
+      teams: [],
+      cta: 'Пока нет команд — создай первую и собери единомышленников!',
+    },
+  }
+}
+
+const AppContext = createContext<AppContextValue | null>(null)
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [db, setDb] = useState<DB>(loadDB)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DB_KEY, JSON.stringify(db))
+    } catch {
+      // ignore quota / private mode errors
+    }
+  }, [db])
+
+  const mutate = (fn: (prev: DB) => DB) => setDb(fn)
+
+  const user = db.users.find((candidate) => candidate.id === db.sessionUserId) ?? null
+
+  const allCategories = useMemo<Category[]>(() => {
+    const custom = db.customCategories.map(toCategory)
+    return [...baseCategories, ...custom]
+  }, [db.customCategories])
+
+  const value = useMemo<AppContextValue>(() => {
+    const register = (input: RegisterInput): string | null => {
+      const login = input.login.trim().toLowerCase()
+      if (!input.name.trim() || !input.surname.trim()) return 'Заполни имя и фамилию'
+      if (!login) return 'Придумай логин'
+      if (input.password.length < 4) return 'Пароль должен быть минимум 4 символа'
+      if (!input.city.trim()) return 'Укажи свой город'
+      if (!input.telegram.trim()) return 'Укажи свой Telegram'
+      if (db.users.some((existing) => existing.login === login)) return 'Такой логин уже занят'
+
+      const newUser: User = {
+        id: uid(),
+        name: input.name.trim(),
+        surname: input.surname.trim(),
+        login,
+        password: hashPassword(input.password),
+        telegram: input.telegram.trim(),
+        city: input.city.trim(),
+        hobbies: input.hobbies.map((hobby) => hobby.trim()).filter(Boolean),
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, users: [...d.users, newUser], sessionUserId: newUser.id }))
+      return null
+    }
+
+    const login = (rawLogin: string, password: string): string | null => {
+      const normalized = rawLogin.trim().toLowerCase()
+      const found = db.users.find((candidate) => candidate.login === normalized)
+      if (!found || found.password !== hashPassword(password)) return 'Неверный логин или пароль'
+      mutate((d) => ({ ...d, sessionUserId: found.id }))
+      return null
+    }
+
+    const logout = () => mutate((d) => ({ ...d, sessionUserId: null }))
+
+    const updateProfile = (
+      patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>,
+    ) => {
+      if (!user) return
+      const cleaned = { ...patch }
+      for (const key of ['name', 'surname', 'city', 'telegram'] as const) {
+        const raw = cleaned[key]
+        if (typeof raw === 'string') cleaned[key] = raw.trim()
+      }
+      if (Array.isArray(cleaned.hobbies)) {
+        cleaned.hobbies = cleaned.hobbies.map((hobby) => hobby.trim()).filter(Boolean)
+      }
+      mutate((d) => ({
+        ...d,
+        users: d.users.map((candidate) =>
+          candidate.id === user.id ? { ...candidate, ...cleaned } : candidate,
+        ),
+      }))
+    }
+
+    const changePassword = (current: string, next: string): string | null => {
+      if (!user) return 'Сначала войди в аккаунт'
+      if (user.password !== hashPassword(current)) return 'Текущий пароль неверный'
+      if (next.length < 4) return 'Новый пароль слишком короткий (минимум 4 символа)'
+      mutate((d) => ({
+        ...d,
+        users: d.users.map((candidate) =>
+          candidate.id === user.id ? { ...candidate, password: hashPassword(next) } : candidate,
+        ),
+      }))
+      return null
+    }
+
+    const addReview = (sphereId: string, rating: number, text: string) => {
+      if (!user) return
+      const review: Review = {
+        id: uid(),
+        sphereId,
+        userId: user.id,
+        authorName: `${user.name} ${user.surname}`.trim(),
+        rating,
+        text: censor(text),
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, reviews: [review, ...d.reviews] }))
+    }
+
+    const addApplication = (input: NewApplication) => {
+      if (!user) return
+      const application: Application = {
+        id: uid(),
+        ...input,
+        userId: user.id,
+        userName: `${user.name} ${user.surname}`.trim(),
+        review: censor(input.review),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, applications: [application, ...d.applications] }))
+    }
+
+    const setApplicationStatus = (id: string, status: 'accepted' | 'rejected') => {
+      mutate((d) => {
+        const application = d.applications.find((candidate) => candidate.id === id)
+        if (!application) return d
+        const applications = d.applications.map((candidate) =>
+          candidate.id === id ? { ...candidate, status } : candidate,
+        )
+        const text =
+          status === 'accepted'
+            ? `🎉 Сфера «${application.sphereName}» приняла твою заявку в команду «${application.teamTitle}»! Это «мис» от сферы — ждём тебя!`
+            : `Сфера «${application.sphereName}» пока не приняла твою заявку в команду «${application.teamTitle}». Попробуй другие сферы!`
+        const notification: Notification = {
+          id: uid(),
+          userId: application.userId,
+          text,
+          read: false,
+          createdAt: new Date().toISOString(),
+        }
+        return { ...d, applications, notifications: [notification, ...d.notifications] }
+      })
+    }
+
+    const addCategory = (name: string): string | null => {
+      if (!user) return null
+      const trimmed = name.trim()
+      if (!trimmed) return null
+      if (allCategories.some((category) => category.name.toLowerCase() === trimmed.toLowerCase())) {
+        return null
+      }
+      const category: CustomCategory = {
+        id: uid(),
+        name: trimmed,
+        creatorId: user.id,
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, customCategories: [...d.customCategories, category] }))
+      return category.id
+    }
+
+    const addTeam = (input: NewTeam) => {
+      if (!user) return
+      const team: CustomTeam = {
+        id: uid(),
+        ...input,
+        members: 1,
+        creatorId: user.id,
+        creatorName: `${user.name} ${user.surname}`.trim(),
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({
+        ...d,
+        customTeams: [team, ...d.customTeams],
+        notifications: [
+          {
+            id: uid(),
+            userId: user.id,
+            text: `🚀 Команда «${team.title}» создана в сфере «${team.category}»!`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+          ...d.notifications,
+        ],
+      }))
+    }
+
+    const addChatMessage = (text: string) => {
+      const authorName = user ? `${user.name} ${user.surname}`.trim() : 'Гость'
+      const message: ChatMessage = {
+        id: uid(),
+        authorName,
+        text: censor(text),
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, chat: [...d.chat, message] }))
+    }
+
+    const recordVisit = (sphereId: string) => {
+      if (!user) return
+      mutate((d) => {
+        const rest = d.visits.filter(
+          (visit) => !(visit.sphereId === sphereId && visit.userId === user.id),
+        )
+        return {
+          ...d,
+          visits: [{ sphereId, userId: user.id, at: new Date().toISOString() }, ...rest],
+        }
+      })
+    }
+
+    const markAllNotificationsRead = () => {
+      if (!user) return
+      mutate((d) => ({
+        ...d,
+        notifications: d.notifications.map((notification) =>
+          notification.userId === user.id ? { ...notification, read: true } : notification,
+        ),
+      }))
+    }
+
+    const sphereStats = (sphereId: string) => {
+      const reviews = db.reviews.filter((review) => review.sphereId === sphereId)
+      const accepted = db.applications.filter(
+        (application) => application.sphereId === sphereId && application.status === 'accepted',
+      )
+      const visits = db.visits.filter((visit) => visit.sphereId === sphereId)
+      const activity = reviews.length + accepted.length + visits.length
+      const rating = reviews.length
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+        : 0
+      return { rating, reviews: reviews.length, activity }
+    }
+
+    const sphereName = (sphereId: string) =>
+      allCategories.find((category) => category.id === sphereId)?.name ?? sphereId
+
+    return {
+      db,
+      user,
+      allCategories,
+      register,
+      login,
+      logout,
+      updateProfile,
+      changePassword,
+      addReview,
+      addApplication,
+      setApplicationStatus,
+      addCategory,
+      addTeam,
+      addChatMessage,
+      recordVisit,
+      markAllNotificationsRead,
+      sphereStats,
+      sphereName,
+    }
+  }, [db, user, allCategories])
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext)
+  if (!ctx) throw new Error('useApp must be used within AppProvider')
+  return ctx
+}
+
+

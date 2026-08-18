@@ -27,8 +27,7 @@ export function StatsBar() {
                 />
               </svg>
               <div>
-                <p className="text-xl font-black text-brand">{item.value}</p>
-                <p className="text-[11px] font-medium leading-tight text-muted">
+                <p className="text-[13px] font-bold leading-tight text-ink">
                   {item.label}
                 </p>
               </div>

@@ -57,7 +57,7 @@ export function Hero() {
             ))}
           </div>
           <p className="text-sm font-medium text-ink">
-            Уже более 10 000 человек нашли свою команду ❤️
+            Уже тысячи людей нашли свою команду ❤️
           </p>
         </div>
       </div>

@@ -33,6 +33,8 @@ export type Team = {
   description: string
   action: 'details' | 'join' | 'watch'
   category: string
+  city: string
+  difficulty: 'Легко' | 'Средне' | 'Сложно'
 }
 
 const av = [
@@ -391,42 +393,6 @@ export const categories: Category[] = [
     },
   },
   {
-    id: 'politics',
-    name: 'Политика',
-    icon: asset('images/icons/politics.png'),
-    info: {
-      title: 'Найди команду для политической активности!',
-      subtitle: 'Обсуждай, участвуй в дебатах и волонтерь на выборах.',
-      spheres: ['Местное самоуправление', 'Молодёжные партии', 'Права человека'],
-      teams: [
-        {
-          name: 'Гражданская инициатива',
-          skills: 'Ораторское искусство, знание законов',
-          rating: '3.8/5',
-        },
-      ],
-      cta: 'Заполни 4 шага и найди тиммейтов.',
-    },
-  },
-  {
-    id: 'religion',
-    name: 'Религия',
-    icon: asset('images/icons/religion.png'),
-    info: {
-      title: 'Найди единомышленников в вере!',
-      subtitle: 'Община, изучение священных текстов и совместные мероприятия.',
-      spheres: ['Христианство', 'Ислам', 'Буддизм', 'Духовные практики'],
-      teams: [
-        {
-          name: 'Община «Свет»',
-          skills: 'Открытость, уважение к другим',
-          rating: '4.2/5',
-        },
-      ],
-      cta: 'Заполни 4 шага и найди единомышленников.',
-    },
-  },
-  {
     id: 'languages',
     name: 'Языки',
     icon: asset('images/icons/languages.png'),
@@ -502,6 +468,8 @@ export const featuredTeams: Team[] = [
     description: 'Строим большой город и крутые проекты вместе!',
     action: 'details',
     category: 'Видеоигры',
+    city: 'Москва',
+    difficulty: 'Легко',
   },
   {
     id: 'startup',
@@ -514,6 +482,8 @@ export const featuredTeams: Team[] = [
     description: 'Ищем дизайнера и разработчика для нового стартапа.',
     action: 'join',
     category: 'Стартапы',
+    city: 'Санкт-Петербург',
+    difficulty: 'Сложно',
   },
   {
     id: 'hike',
@@ -526,6 +496,8 @@ export const featuredTeams: Team[] = [
     description: 'Ищем еще двух человек для похода в горы!',
     action: 'watch',
     category: 'Путешествия',
+    city: 'Казань',
+    difficulty: 'Средне',
   },
   {
     id: 'dance',
@@ -538,6 +510,8 @@ export const featuredTeams: Team[] = [
     description: 'Готовимся к выступлениям и фестивалям.',
     action: 'details',
     category: 'Танцы',
+    city: 'Нижний Новгород',
+    difficulty: 'Средне',
   },
 ]
 
@@ -553,6 +527,8 @@ export const recommendedTeams: Team[] = [
     description: '',
     action: 'details',
     category: 'Киберспорт',
+    city: 'Москва',
+    difficulty: 'Средне',
   },
   {
     id: 'webdev',
@@ -565,6 +541,8 @@ export const recommendedTeams: Team[] = [
     description: '',
     action: 'details',
     category: 'IT',
+    city: 'Санкт-Петербург',
+    difficulty: 'Сложно',
   },
   {
     id: 'creative',
@@ -577,6 +555,8 @@ export const recommendedTeams: Team[] = [
     description: '',
     action: 'details',
     category: 'Дизайн',
+    city: 'Екатеринбург',
+    difficulty: 'Средне',
   },
   {
     id: 'football',
@@ -589,6 +569,8 @@ export const recommendedTeams: Team[] = [
     description: '',
     action: 'details',
     category: 'Спорт',
+    city: 'Краснодар',
+    difficulty: 'Легко',
   },
   {
     id: 'phototours',
@@ -601,39 +583,14 @@ export const recommendedTeams: Team[] = [
     description: '',
     action: 'details',
     category: 'Путешествия',
-  },
-]
-
-export const createSteps = [
-  {
-    n: 1,
-    title: 'Выбери сферу',
-    text: 'Укажи, чем вы хотите заниматься',
-    icon: 'target',
-  },
-  {
-    n: 2,
-    title: 'Опиши идею',
-    text: 'Расскажи о целях и планах',
-    icon: 'idea',
-  },
-  {
-    n: 3,
-    title: 'Определи роли',
-    text: 'Укажи, кого ты ищешь в команду',
-    icon: 'roles',
-  },
-  {
-    n: 4,
-    title: 'Опубликуй',
-    text: 'Найди своих людей!',
-    icon: 'send',
+    city: 'Самара',
+    difficulty: 'Легко',
   },
 ]
 
 export const stats = [
-  { value: '10 000+', label: 'активных пользователей', icon: 'users' },
-  { value: '2 500+', label: 'команд создано', icon: 'teams' },
-  { value: '50 000+', label: 'успешных объединений', icon: 'star' },
-  { value: '100+', label: 'направлений', icon: 'globe' },
+  { label: 'активных пользователей', icon: 'users' },
+  { label: 'команд создано', icon: 'teams' },
+  { label: 'успешных объединений', icon: 'star' },
+  { label: 'направлений', icon: 'globe' },
 ]

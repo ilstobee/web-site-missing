@@ -7,7 +7,7 @@ const actionLabel: Record<Team['action'], string> = {
   watch: 'Посмотреть',
 }
 
-export function TeamCard({ team }: { team: Team }) {
+export function TeamCard({ team, onApply }: { team: Team; onApply(team: Team): void }) {
   const [saved, setSaved] = useState(false)
 
   return (
@@ -38,12 +38,18 @@ export function TeamCard({ team }: { team: Team }) {
         <p className="mt-1 text-[12px] font-medium text-muted">
           {team.tags.join(' • ')}
         </p>
+        <p className="mt-1.5 flex items-center gap-1 text-[12px] font-medium text-muted">
+          <span>📍 {team.city}</span>
+          <span aria-hidden>·</span>
+          <span>🎯 {team.difficulty}</span>
+        </p>
         <p className="mt-2 line-clamp-2 flex-1 text-[13px] leading-snug text-muted">
-          {team.description}
+          {team.description || 'Открой страницу команды и подай заявку!'}
         </p>
         <div className="mt-4 flex items-center justify-between gap-2">
           <button
             type="button"
+            onClick={() => onApply(team)}
             className="rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
           >
             {actionLabel[team.action]}
