@@ -16,7 +16,7 @@ export function customToTeam(team: CustomTeam): Team {
   return {
     id: team.id,
     title: team.title,
-    image: asset('images/teams/team-startup.png'),
+    image: team.image || asset('images/teams/team-startup.png'),
     members: team.members,
     capacity: team.capacity,
     avatars: socialAvatars.slice(0, 3),

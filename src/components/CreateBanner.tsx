@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useApp } from '../store'
 import type { Difficulty } from '../store'
+import { firebaseEnabled, uploadCover } from '../firebase'
 
 type Props = {
   onOpenAuth(): void
@@ -15,12 +16,28 @@ export function CreateBanner({ onOpenAuth }: Props) {
   const [city, setCity] = useState(user?.city ?? '')
   const [difficulty, setDifficulty] = useState<Difficulty>('Легко')
   const [capacity, setCapacity] = useState(5)
+  const [image, setImage] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [done, setDone] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const selected = allCategories.find((category) => category.id === sphereId)
 
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand'
+
+  const pickImage = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await uploadCover(file, title.trim() || 'team')
+      setImage(url)
+    } catch {
+      setImage('')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const submit = () => {
     if (!user) {
@@ -37,9 +54,11 @@ export function CreateBanner({ onOpenAuth }: Props) {
       difficulty,
       capacity,
       tags: [selected.name],
+      image: image || undefined,
     })
     setTitle('')
     setDescription('')
+    setImage('')
     setDone(true)
     window.setTimeout(() => setDone(false), 4000)
   }
@@ -57,12 +76,14 @@ export function CreateBanner({ onOpenAuth }: Props) {
                 Создай свою!
               </p>
               <p className="mt-2 text-sm text-muted">
-                Укажи сферу, город и сложность — твоя команда появится в ленте, и на неё смогут
-                подавать заявки. Для создания нужно войти в аккаунт.
+                Укажи сферу, город и сложность — после одобрения твоя команда появится в ленте, и на
+                неё смогут подавать заявки. Для создания нужно войти в аккаунт.
               </p>
               {done ? (
                 <p className="mt-4 inline-block rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-white">
-                  ✓ Команда создана и добавлена в ленту!
+                  {firebaseEnabled
+                    ? '✓ Команда отправлена на модерацию!'
+                    : '✓ Команда создана и добавлена в ленту!'}
                 </p>
               ) : null}
             </div>
@@ -121,6 +142,34 @@ export function CreateBanner({ onOpenAuth }: Props) {
                   />
                 </label>
               </div>
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => void pickImage(event.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-white px-4 py-2 text-[13px] font-semibold text-ink transition hover:border-brand"
+                >
+                  {uploading ? 'Загружаю обложку…' : image ? 'Заменить обложку' : 'Добавить обложку'}
+                </button>
+                {image ? (
+                  <img
+                    src={image}
+                    alt="Обложка"
+                    className="h-10 w-16 rounded-lg object-cover"
+                  />
+                ) : null}
+              </div>
+              {firebaseEnabled ? (
+                <p className="text-[12px] text-muted">
+                  Команда появится в ленте после одобрения администратором.
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={submit}

@@ -8,12 +8,16 @@ import {
   subscribeAuthFb,
   subscribeTeamsFb,
   subscribeCategoriesFb,
+  subscribePendingTeamsFb,
+  subscribePendingCategoriesFb,
   signInWithEmail,
   signUpWithEmail,
   signOutFb,
   changePasswordFb,
   addTeamFb,
   addCategoryFb,
+  setTeamStatusFb,
+  setCategoryStatusFb,
   getUserProfileFb,
   saveUserProfileFb,
   fbErrorMessage,
@@ -22,6 +26,8 @@ import {
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
 
 export type UserRole = 'organizer' | 'participant'
+
+export type ModerationStatus = 'pending' | 'approved' | 'rejected'
 
 export type User = {
   id: string
@@ -33,6 +39,7 @@ export type User = {
   city: string
   hobbies: string[]
   role: UserRole
+  isAdmin?: boolean
   createdAt: string
 }
 
@@ -76,6 +83,7 @@ export type CustomCategory = {
   name: string
   creatorId: string
   createdAt: string
+  status: ModerationStatus
 }
 
 export type CustomTeam = {
@@ -92,6 +100,8 @@ export type CustomTeam = {
   creatorName: string
   tags: string[]
   createdAt: string
+  status: ModerationStatus
+  image?: string
 }
 
 export type TeamReview = {
@@ -128,6 +138,8 @@ type DB = {
   notifications: Notification[]
   customCategories: CustomCategory[]
   customTeams: CustomTeam[]
+  pendingCategories: CustomCategory[]
+  pendingTeams: CustomTeam[]
   chat: ChatMessage[]
   visits: Visit[]
 }
@@ -166,6 +178,7 @@ export type NewTeam = {
   difficulty: Difficulty
   capacity: number
   tags: string[]
+  image?: string
 }
 
 type AppContextValue = {
@@ -187,6 +200,10 @@ type AppContextValue = {
   setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
   addCategory(name: string): Promise<string | null>
   addTeam(input: NewTeam): void
+  approveTeam(id: string): void
+  rejectTeam(id: string): void
+  approveCategory(id: string): void
+  rejectCategory(id: string): void
   addChatMessage(text: string): void
   recordVisit(sphereId: string): void
   markAllNotificationsRead(): void
@@ -205,6 +222,8 @@ const emptyDB: DB = {
   notifications: [],
   customCategories: [],
   customTeams: [],
+  pendingCategories: [],
+  pendingTeams: [],
   chat: [],
   visits: [],
 }
@@ -218,6 +237,12 @@ function loadDB(): DB {
       const merged = { ...emptyDB, ...parsed }
       merged.users = (merged.users ?? []).map((candidate) =>
         candidate.role ? candidate : { ...candidate, role: 'participant' },
+      )
+      merged.customTeams = (merged.customTeams ?? []).map((team) =>
+        team.status ? team : { ...team, status: 'approved' },
+      )
+      merged.customCategories = (merged.customCategories ?? []).map((category) =>
+        category.status ? category : { ...category, status: 'approved' },
       )
       return merged
     }
@@ -297,6 +322,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const uid = fbUser.uid
       const fbId = `fb-${uid}`
       const profile = await getUserProfileFb(uid)
+      const isAdmin =
+        profile.isAdmin === true || import.meta.env.VITE_FIREBASE_ADMIN_UID === uid
       setDb((d) => {
         const existing = d.users.find((candidate) => candidate.id === fbId)
         const record: User = {
@@ -309,6 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           city: profile.city ?? '',
           hobbies: profile.hobbies ?? [],
           role: profile.role ?? 'participant',
+          isAdmin,
           createdAt: profile.createdAt ?? new Date().toISOString(),
         }
         const users = existing
@@ -340,6 +368,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let alive = true
     const unsubscribe = subscribeCategoriesFb((categories) => {
       if (alive) setDb((d) => ({ ...d, customCategories: categories }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribePendingTeamsFb((teams) => {
+      if (alive) setDb((d) => ({ ...d, pendingTeams: teams }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribePendingCategoriesFb((categories) => {
+      if (alive) setDb((d) => ({ ...d, pendingCategories: categories }))
     })
     return () => {
       alive = false
@@ -442,6 +494,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           city: profile.city ?? existing?.city ?? '',
           hobbies: profile.hobbies ?? existing?.hobbies ?? [],
           role: profile.role ?? existing?.role ?? 'participant',
+          isAdmin:
+            profile.isAdmin ?? existing?.isAdmin ?? import.meta.env.VITE_FIREBASE_ADMIN_UID === uid,
           createdAt: existing?.createdAt ?? new Date().toISOString(),
         }
         const users = existing
@@ -631,6 +685,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: trimmed,
         creatorId: user.id,
         createdAt: new Date().toISOString(),
+        status: firebaseEnabled ? 'pending' : 'approved',
       }
       if (firebaseEnabled) {
         try {
@@ -652,6 +707,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         creatorId: user.id,
         creatorName: `${user.name} ${user.surname}`.trim(),
         createdAt: new Date().toISOString(),
+        status: firebaseEnabled ? 'pending' : 'approved',
       }
       if (firebaseEnabled) {
         void addTeamFb(team)
@@ -660,6 +716,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({
         ...d,
         customTeams: [team, ...d.customTeams],
+      }))
+    }
+
+    const approveTeam = (id: string) => {
+      if (!user?.isAdmin) return
+      if (firebaseEnabled) {
+        void setTeamStatusFb(id, 'approved')
+        return
+      }
+      mutate((d) => {
+        const team = d.pendingTeams.find((candidate) => candidate.id === id)
+        if (!team) return d
+        return {
+          ...d,
+          customTeams: [{ ...team, status: 'approved' }, ...d.customTeams],
+          pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
+        }
+      })
+    }
+
+    const rejectTeam = (id: string) => {
+      if (!user?.isAdmin) return
+      if (firebaseEnabled) {
+        void setTeamStatusFb(id, 'rejected')
+        return
+      }
+      mutate((d) => ({
+        ...d,
+        pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
+      }))
+    }
+
+    const approveCategory = (id: string) => {
+      if (!user?.isAdmin) return
+      if (firebaseEnabled) {
+        void setCategoryStatusFb(id, 'approved')
+        return
+      }
+      mutate((d) => {
+        const category = d.pendingCategories.find((candidate) => candidate.id === id)
+        if (!category) return d
+        return {
+          ...d,
+          customCategories: [{ ...category, status: 'approved' }, ...d.customCategories],
+          pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
+        }
+      })
+    }
+
+    const rejectCategory = (id: string) => {
+      if (!user?.isAdmin) return
+      if (firebaseEnabled) {
+        void setCategoryStatusFb(id, 'rejected')
+        return
+      }
+      mutate((d) => ({
+        ...d,
+        pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
       }))
     }
 
@@ -732,6 +846,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setApplicationStatus,
       addCategory,
       addTeam,
+      approveTeam,
+      rejectTeam,
+      approveCategory,
+      rejectCategory,
       addChatMessage,
       recordVisit,
       markAllNotificationsRead,

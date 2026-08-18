@@ -9,7 +9,7 @@ type Props = {
   initialTab?: Tab
 }
 
-type Tab = 'profile' | 'applications' | 'incoming' | 'reviews' | 'history'
+type Tab = 'profile' | 'applications' | 'incoming' | 'reviews' | 'history' | 'moderation'
 
 const roleLabel: Record<UserRole, string> = {
   organizer: 'Организатор',
@@ -32,6 +32,10 @@ export function ProfileModal({ open, onClose, initialTab }: Props) {
     setApplicationStatus,
     removeReview,
     removeTeamReview,
+    approveTeam,
+    rejectTeam,
+    approveCategory,
+    rejectCategory,
     sphereName,
   } = useApp()
 
@@ -123,6 +127,10 @@ export function ProfileModal({ open, onClose, initialTab }: Props) {
     { id: 'reviews', label: 'Отзывы', badge: mySphereReviews.length + myTeamReviews.length },
     { id: 'history', label: 'История сфер', badge: myVisits.length },
   ]
+
+  if (user.isAdmin) {
+    tabs.push({ id: 'moderation', label: 'Модерация', badge: db.pendingTeams.length + db.pendingCategories.length })
+  }
 
   return (
     <div
@@ -550,6 +558,101 @@ export function ProfileModal({ open, onClose, initialTab }: Props) {
                   ))}
                 </div>
               )}
+            </div>
+          ) : null}
+        {tab === 'moderation' && user.isAdmin ? (
+            <div className="space-y-6">
+              <div>
+                <p className="text-sm font-extrabold text-ink">
+                  Сферы на модерации
+                </p>
+                {db.pendingCategories.length === 0 ? (
+                  <p className="mt-3 rounded-2xl bg-cream p-5 text-center text-[13px] text-muted">
+                    Нет сфер на проверке.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {db.pendingCategories.map((category) => (
+                      <article key={category.id} className="rounded-2xl bg-cream p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-ink">{category.name}</p>
+                            <p className="mt-0.5 text-[11px] text-muted">
+                              {fmtDate(category.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => approveCategory(category.id)}
+                              className="rounded-full bg-brand px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-brand-dark"
+                            >
+                              Одобрить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => rejectCategory(category.id)}
+                              className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                            >
+                              Отклонить
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-extrabold text-ink">Команды на модерации</p>
+                {db.pendingTeams.length === 0 ? (
+                  <p className="mt-3 rounded-2xl bg-cream p-5 text-center text-[13px] text-muted">
+                    Нет команд на проверке.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {db.pendingTeams.map((team) => (
+                      <article key={team.id} className="rounded-2xl bg-cream p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-ink">{team.title}</p>
+                            <p className="mt-0.5 text-[12px] text-muted">
+                              {team.category} · {team.city} · {team.difficulty}
+                            </p>
+                            {team.image ? (
+                              <img
+                                src={team.image}
+                                alt=""
+                                className="mt-2 h-16 w-28 rounded-lg object-cover"
+                              />
+                            ) : null}
+                            <p className="mt-1 text-[11px] text-muted">
+                              Создал: {team.creatorName} · {fmtDate(team.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => approveTeam(team.id)}
+                              className="rounded-full bg-brand px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-brand-dark"
+                            >
+                              Одобрить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => rejectTeam(team.id)}
+                              className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                            >
+                              Отклонить
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

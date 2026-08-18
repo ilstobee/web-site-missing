@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../store'
 import { SectionHeader } from './SectionHeader'
 import { fmtDate } from '../store'
+import { firebaseEnabled } from '../firebase'
 
 type Props = {
   activeId: string
@@ -35,6 +36,7 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
   const [showAll, setShowAll] = useState(false)
   const [addCatOpen, setAddCatOpen] = useState(false)
   const [newCatName, setNewCatName] = useState('')
+  const [categorySent, setCategorySent] = useState(false)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewSent, setReviewSent] = useState(false)
@@ -61,7 +63,14 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
   const submitCategory = async () => {
     if (!newCatName.trim()) return
     const id = await addCategory(newCatName)
-    if (id) onActiveChange(id)
+    if (id) {
+      if (firebaseEnabled) {
+        setCategorySent(true)
+        window.setTimeout(() => setCategorySent(false), 4000)
+      } else {
+        onActiveChange(id)
+      }
+    }
     setNewCatName('')
     setAddCatOpen(false)
   }
@@ -329,7 +338,9 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
                 Не нашёл нужной сферы? Добавь свою!
               </h4>
               <p className="mt-1 text-[13px] text-muted">
-                Новая сфера появится в общем списке и в ленте предложений.
+                {firebaseEnabled
+                  ? 'Новая сфера появится в общем списке после одобрения администратором.'
+                  : 'Новая сфера появится в общем списке и в ленте предложений.'}
               </p>
             </div>
             {!user ? (
@@ -372,6 +383,11 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
               >
                 Добавить сферу
               </button>
+              {categorySent ? (
+                <span className="text-[13px] font-semibold text-brand">
+                  ✓ Сфера отправлена на модерацию!
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>

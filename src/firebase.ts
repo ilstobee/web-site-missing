@@ -22,12 +22,15 @@ import {
   setDoc,
   getDoc,
   addDoc,
+  updateDoc,
   onSnapshot,
   query,
   orderBy,
+  where,
   type Firestore,
 } from 'firebase/firestore'
-import type { CustomCategory, CustomTeam, User, UserRole } from './store'
+import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage'
+import type { CustomCategory, CustomTeam, ModerationStatus, User, UserRole } from './store'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
@@ -43,6 +46,7 @@ export const firebaseEnabled = Boolean(firebaseConfig.apiKey && firebaseConfig.p
 export const app: FirebaseApp | null = firebaseEnabled ? initializeApp(firebaseConfig) : null
 export const auth: Auth | null = firebaseEnabled && app ? getAuth(app) : null
 export const db: Firestore | null = firebaseEnabled && app ? getFirestore(app) : null
+export const storage: FirebaseStorage | null = firebaseEnabled && app ? getStorage(app) : null
 
 export type ProfilePatch = {
   name?: string
@@ -52,6 +56,7 @@ export type ProfilePatch = {
   hobbies?: string[]
   role?: UserRole
   login?: string
+  isAdmin?: boolean
 }
 
 function buildPatch(profile: ProfilePatch): Record<string, unknown> {
@@ -63,6 +68,7 @@ function buildPatch(profile: ProfilePatch): Record<string, unknown> {
   if (profile.hobbies !== undefined) patch.hobbies = profile.hobbies
   if (profile.role !== undefined) patch.role = profile.role
   if (profile.login !== undefined) patch.login = profile.login
+  if (profile.isAdmin !== undefined) patch.isAdmin = profile.isAdmin
   return patch
 }
 
@@ -132,7 +138,11 @@ export async function saveUserProfileFb(uid: string, profile: ProfilePatch): Pro
 
 export function subscribeTeamsFb(callback: (teams: CustomTeam[]) => void): () => void {
   if (!db) return () => {}
-  const q = query(collection(db, 'teams'), orderBy('createdAt', 'desc'))
+  const q = query(
+    collection(db, 'teams'),
+    where('status', '==', 'approved'),
+    orderBy('createdAt', 'desc'),
+  )
   return onSnapshot(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomTeam),
@@ -142,12 +152,56 @@ export function subscribeTeamsFb(callback: (teams: CustomTeam[]) => void): () =>
 
 export function subscribeCategoriesFb(callback: (categories: CustomCategory[]) => void): () => void {
   if (!db) return () => {}
-  const q = query(collection(db, 'categories'), orderBy('createdAt', 'asc'))
+  const q = query(
+    collection(db, 'categories'),
+    where('status', '==', 'approved'),
+    orderBy('createdAt', 'asc'),
+  )
   return onSnapshot(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomCategory),
     )
   })
+}
+
+export function subscribePendingTeamsFb(callback: (teams: CustomTeam[]) => void): () => void {
+  if (!db) return () => {}
+  const q = query(
+    collection(db, 'teams'),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc'),
+  )
+  return onSnapshot(q, (snapshot) => {
+    callback(
+      snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomTeam),
+    )
+  })
+}
+
+export function subscribePendingCategoriesFb(
+  callback: (categories: CustomCategory[]) => void,
+): () => void {
+  if (!db) return () => {}
+  const q = query(
+    collection(db, 'categories'),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'asc'),
+  )
+  return onSnapshot(q, (snapshot) => {
+    callback(
+      snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomCategory),
+    )
+  })
+}
+
+export async function setTeamStatusFb(id: string, status: ModerationStatus): Promise<void> {
+  if (!db) return
+  await updateDoc(doc(db, 'teams', id), { status })
+}
+
+export async function setCategoryStatusFb(id: string, status: ModerationStatus): Promise<void> {
+  if (!db) return
+  await updateDoc(doc(db, 'categories', id), { status })
 }
 
 export async function addTeamFb(team: CustomTeam): Promise<void> {
@@ -161,6 +215,43 @@ export async function addCategoryFb(category: CustomCategory): Promise<string> {
   const { id: _id, ...data } = category
   const ref = await addDoc(collection(db, 'categories'), data)
   return ref.id
+}
+
+export async function uploadCover(file: File, name: string): Promise<string> {
+  if (storage) {
+    const fileRef = ref(storage, `covers/${name}-${Date.now()}`)
+    await uploadBytes(fileRef, file)
+    return getDownloadURL(fileRef)
+  }
+  return fileToDataUrl(file)
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const img = new Image()
+      img.onload = () => {
+        const max = 600
+        const scale = Math.min(1, max / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.width * scale))
+        canvas.height = Math.max(1, Math.round(img.height * scale))
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(dataUrl)
+          return
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.8))
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    }
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
+    reader.readAsDataURL(file)
+  })
 }
 
 export function fbErrorMessage(error: unknown): string {
