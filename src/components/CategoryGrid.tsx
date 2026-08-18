@@ -58,9 +58,9 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
     window.setTimeout(() => setReviewSent(false), 3000)
   }
 
-  const submitCategory = () => {
+  const submitCategory = async () => {
     if (!newCatName.trim()) return
-    const id = addCategory(newCatName)
+    const id = await addCategory(newCatName)
     if (id) onActiveChange(id)
     setNewCatName('')
     setAddCatOpen(false)

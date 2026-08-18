@@ -3,6 +3,21 @@ import type { ReactNode } from 'react'
 import type { Category } from './data'
 import { asset, categories as baseCategories } from './data'
 import { censor } from './profanity'
+import {
+  firebaseEnabled,
+  subscribeAuthFb,
+  subscribeTeamsFb,
+  subscribeCategoriesFb,
+  signInWithEmail,
+  signUpWithEmail,
+  signOutFb,
+  changePasswordFb,
+  addTeamFb,
+  addCategoryFb,
+  getUserProfileFb,
+  saveUserProfileFb,
+  fbErrorMessage,
+} from './firebase'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
 
@@ -126,6 +141,8 @@ export type RegisterInput = {
   city: string
   hobbies: string[]
   role: UserRole
+  email?: string
+  phone?: string
 }
 
 export type NewApplication = {
@@ -155,9 +172,10 @@ type AppContextValue = {
   db: DB
   user: User | null
   allCategories: Category[]
-  register(input: RegisterInput): string | null
-  login(login: string, password: string): string | null
+  register(input: RegisterInput): Promise<string | null>
+  login(login: string, password: string): Promise<string | null>
   logout(): void
+  markFbSession(uid: string, profile: Partial<User>): void
   updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
   setUserRole(role: UserRole): void
   changePassword(current: string, next: string): string | null
@@ -167,7 +185,7 @@ type AppContextValue = {
   removeTeamReview(id: string): void
   addApplication(input: NewApplication): void
   setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
-  addCategory(name: string): string | null
+  addCategory(name: string): Promise<string | null>
   addTeam(input: NewTeam): void
   addChatMessage(text: string): void
   recordVisit(sphereId: string): void
@@ -267,6 +285,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const mutate = (fn: (prev: DB) => DB) => setDb(fn)
 
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribeAuthFb(async (fbUser) => {
+      if (!alive) return
+      if (!fbUser) {
+        setDb((d) => ({ ...d, sessionUserId: null }))
+        return
+      }
+      const uid = fbUser.uid
+      const fbId = `fb-${uid}`
+      const profile = await getUserProfileFb(uid)
+      setDb((d) => {
+        const existing = d.users.find((candidate) => candidate.id === fbId)
+        const record: User = {
+          id: fbId,
+          name: profile.name ?? fbUser.displayName ?? '',
+          surname: profile.surname ?? '',
+          login: profile.login ?? fbUser.email ?? '',
+          password: '',
+          telegram: profile.telegram ?? '',
+          city: profile.city ?? '',
+          hobbies: profile.hobbies ?? [],
+          role: profile.role ?? 'participant',
+          createdAt: profile.createdAt ?? new Date().toISOString(),
+        }
+        const users = existing
+          ? d.users.map((candidate) => (candidate.id === fbId ? record : candidate))
+          : [...d.users, record]
+        return { ...d, users, sessionUserId: fbId }
+      })
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribeTeamsFb((teams) => {
+      if (alive) setDb((d) => ({ ...d, customTeams: teams }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribeCategoriesFb((categories) => {
+      if (alive) setDb((d) => ({ ...d, customCategories: categories }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
   const user = db.users.find((candidate) => candidate.id === db.sessionUserId) ?? null
 
   const allCategories = useMemo<Category[]>(() => {
@@ -275,13 +355,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [db.customCategories])
 
   const value = useMemo<AppContextValue>(() => {
-    const register = (input: RegisterInput): string | null => {
+    const register = async (input: RegisterInput): Promise<string | null> => {
       const login = input.login.trim().toLowerCase()
       if (!input.name.trim() || !input.surname.trim()) return 'Заполни имя и фамилию'
       if (!login) return 'Придумай логин'
       if (input.password.length < 8) return 'Пароль должен быть минимум 8 символов'
       if (!input.city.trim()) return 'Укажи свой город'
       if (!input.telegram.trim()) return 'Укажи свой Telegram'
+
+      if (firebaseEnabled) {
+        const email = input.email?.trim() || `${login}@missing.app`
+        try {
+          const fbUser = await signUpWithEmail(email, input.password)
+          const profile = {
+            name: input.name.trim(),
+            surname: input.surname.trim(),
+            city: input.city.trim(),
+            telegram: input.telegram.trim(),
+            hobbies: input.hobbies.map((hobby) => hobby.trim()).filter(Boolean),
+            role: input.role,
+            login,
+          }
+          await saveUserProfileFb(fbUser.uid, profile)
+          markFbSession(fbUser.uid, profile)
+          return null
+        } catch (error) {
+          return fbErrorMessage(error)
+        }
+      }
+
       if (db.users.some((existing) => existing.login === login)) return 'Такой логин уже занят'
 
       const newUser: User = {
@@ -300,7 +402,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    const login = (rawLogin: string, password: string): string | null => {
+    const login = async (rawLogin: string, password: string): Promise<string | null> => {
+      if (firebaseEnabled) {
+        const email = rawLogin.includes('@')
+          ? rawLogin.trim()
+          : `${rawLogin.trim().toLowerCase()}@missing.app`
+        try {
+          await signInWithEmail(email, password)
+          return null
+        } catch (error) {
+          return fbErrorMessage(error)
+        }
+      }
       const normalized = rawLogin.trim().toLowerCase()
       const found = db.users.find((candidate) => candidate.login === normalized)
       if (!found || found.password !== hashPassword(password)) return 'Неверный логин или пароль'
@@ -308,7 +421,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    const logout = () => mutate((d) => ({ ...d, sessionUserId: null }))
+    const logout = () => {
+      if (firebaseEnabled) {
+        void signOutFb()
+      }
+      mutate((d) => ({ ...d, sessionUserId: null }))
+    }
+
+    const markFbSession = (uid: string, profile: Partial<User>) => {
+      const fbId = `fb-${uid}`
+      mutate((d) => {
+        const existing = d.users.find((candidate) => candidate.id === fbId)
+        const record: User = {
+          id: fbId,
+          name: profile.name ?? existing?.name ?? '',
+          surname: profile.surname ?? existing?.surname ?? '',
+          login: profile.login ?? existing?.login ?? '',
+          password: '',
+          telegram: profile.telegram ?? existing?.telegram ?? '',
+          city: profile.city ?? existing?.city ?? '',
+          hobbies: profile.hobbies ?? existing?.hobbies ?? [],
+          role: profile.role ?? existing?.role ?? 'participant',
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
+        }
+        const users = existing
+          ? d.users.map((candidate) => (candidate.id === fbId ? record : candidate))
+          : [...d.users, record]
+        return { ...d, users, sessionUserId: fbId }
+      })
+    }
 
     const updateProfile = (
       patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>,
@@ -328,12 +469,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           candidate.id === user.id ? { ...candidate, ...cleaned } : candidate,
         ),
       }))
+      if (firebaseEnabled && user.id.startsWith('fb-')) {
+        void saveUserProfileFb(user.id.slice(3), cleaned)
+      }
     }
 
     const changePassword = (current: string, next: string): string | null => {
       if (!user) return 'Сначала войди в аккаунт'
-      if (user.password !== hashPassword(current)) return 'Текущий пароль неверный'
       if (next.length < 8) return 'Новый пароль слишком короткий (минимум 8 символов)'
+      if (firebaseEnabled && user.id.startsWith('fb-')) {
+        if (user.password && user.password !== hashPassword(current)) {
+          return 'Текущий пароль неверный'
+        }
+        void changePasswordFb(next)
+        mutate((d) => ({
+          ...d,
+          users: d.users.map((candidate) =>
+            candidate.id === user.id ? { ...candidate, password: hashPassword(next) } : candidate,
+          ),
+        }))
+        return null
+      }
+      if (user.password !== hashPassword(current)) return 'Текущий пароль неверный'
       mutate((d) => ({
         ...d,
         users: d.users.map((candidate) =>
@@ -351,6 +508,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           candidate.id === user.id ? { ...candidate, role } : candidate,
         ),
       }))
+      if (firebaseEnabled && user.id.startsWith('fb-')) {
+        void saveUserProfileFb(user.id.slice(3), { role })
+      }
     }
 
     const addReview = (sphereId: string, rating: number, text: string) => {
@@ -459,7 +619,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    const addCategory = (name: string): string | null => {
+    const addCategory = async (name: string): Promise<string | null> => {
       if (!user) return null
       const trimmed = name.trim()
       if (!trimmed) return null
@@ -471,6 +631,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: trimmed,
         creatorId: user.id,
         createdAt: new Date().toISOString(),
+      }
+      if (firebaseEnabled) {
+        try {
+          return await addCategoryFb(category)
+        } catch {
+          return null
+        }
       }
       mutate((d) => ({ ...d, customCategories: [...d.customCategories, category] }))
       return category.id
@@ -485,6 +652,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         creatorId: user.id,
         creatorName: `${user.name} ${user.surname}`.trim(),
         createdAt: new Date().toISOString(),
+      }
+      if (firebaseEnabled) {
+        void addTeamFb(team)
+        return
       }
       mutate((d) => ({
         ...d,
@@ -549,6 +720,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       register,
       login,
       logout,
+      markFbSession,
       updateProfile,
       setUserRole,
       changePassword,

@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useApp } from '../store'
 import type { UserRole } from '../store'
+import {
+  firebaseEnabled,
+  sendPhoneCode,
+  confirmPhoneCode,
+  saveUserProfileFb,
+  fbErrorMessage,
+} from '../firebase'
 
 type Props = {
   open: boolean
@@ -9,13 +16,21 @@ type Props = {
 }
 
 type Mode = 'login' | 'register'
+type Contact = 'email' | 'phone'
 
 export function AuthModal({ open, onClose, onSuccess }: Props) {
-  const { login, register } = useApp()
+  const { register, login, markFbSession } = useApp()
+
   const [mode, setMode] = useState<Mode>('login')
+  const [contact, setContact] = useState<Contact>('email')
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
+  const [phoneValue, setPhoneValue] = useState('')
+  const [codeValue, setCodeValue] = useState('')
+  const [verificationId, setVerificationId] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const [name, setName] = useState('')
   const [surname, setSurname] = useState('')
@@ -35,8 +50,8 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setHobby('')
   }
 
-  const handleLogin = () => {
-    const err = login(loginValue, password)
+  const handleLogin = async () => {
+    const err = await login(loginValue, password)
     if (err) {
       setError(err)
       return
@@ -46,8 +61,18 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     onClose()
   }
 
-  const handleRegister = () => {
-    const err = register({ name, surname, login: loginValue, password, telegram, city, hobbies, role })
+  const handleRegister = async () => {
+    const err = await register({
+      name,
+      surname,
+      login: loginValue,
+      email: loginValue,
+      password,
+      telegram,
+      city,
+      hobbies,
+      role,
+    })
     if (err) {
       setError(err)
       return
@@ -58,9 +83,64 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     onSuccess()
   }
 
+  const sendCode = async () => {
+    setError(null)
+    setSending(true)
+    try {
+      const container = document.getElementById('fb-recaptcha')
+      if (container) container.innerHTML = ''
+      const confirmation = await sendPhoneCode(phoneValue, 'fb-recaptcha')
+      setVerificationId(confirmation.verificationId)
+      setCodeSent(true)
+    } catch (caught) {
+      setError(fbErrorMessage(caught))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const confirmPhone = async (asRegister: boolean) => {
+    if (!verificationId) return
+    setError(null)
+    setSending(true)
+    try {
+      const fbUser = await confirmPhoneCode(verificationId, codeValue)
+      if (asRegister) {
+        await saveUserProfileFb(fbUser.uid, {
+          name,
+          surname,
+          city,
+          telegram,
+          hobbies,
+          role,
+        })
+        markFbSession(fbUser.uid, {
+          name,
+          surname,
+          city,
+          telegram,
+          hobbies,
+          role,
+        })
+      }
+      setError(null)
+      reset()
+      onClose()
+      onSuccess()
+    } catch (caught) {
+      setError(fbErrorMessage(caught))
+    } finally {
+      setSending(false)
+    }
+  }
+
   const reset = () => {
     setLoginValue('')
     setPassword('')
+    setPhoneValue('')
+    setCodeValue('')
+    setVerificationId('')
+    setCodeSent(false)
     setName('')
     setSurname('')
     setCity('')
@@ -73,6 +153,154 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
 
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white'
+
+  const contactToggle = (
+    <div className="grid grid-cols-2 gap-1 rounded-full bg-cream p-1">
+      {(
+        [
+          { value: 'email', label: 'Почта' },
+          { value: 'phone', label: 'Телефон' },
+        ] as const
+      ).map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => {
+            setContact(option.value)
+            setCodeSent(false)
+            setError(null)
+          }}
+          className={`rounded-full py-2 text-sm font-semibold transition ${
+            contact === option.value
+              ? 'bg-white text-brand shadow-sm'
+              : 'text-muted hover:text-ink'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const phoneForm = (asRegister: boolean) => (
+    <div className="space-y-3">
+      {codeSent ? (
+        <>
+          <p className="rounded-xl bg-brand-soft px-4 py-2.5 text-[13px] font-medium text-brand">
+            Код отправлен на {phoneValue}. Введи его ниже.
+          </p>
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            placeholder="Код из SMS"
+            value={codeValue}
+            onChange={(event) => setCodeValue(event.target.value)}
+          />
+          <button
+            type="button"
+            disabled={sending}
+            onClick={() => confirmPhone(asRegister)}
+            className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+          >
+            {sending ? 'Подтверждаем…' : 'Подтвердить код'}
+          </button>
+        </>
+      ) : (
+        <>
+          <input
+            className={inputClass}
+            inputMode="tel"
+            placeholder="+7 900 000-00-00"
+            value={phoneValue}
+            onChange={(event) => setPhoneValue(event.target.value)}
+          />
+          <button
+            type="button"
+            disabled={sending}
+            onClick={sendCode}
+            className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+          >
+            {sending ? 'Отправляем…' : 'Получить код'}
+          </button>
+          <p className="text-center text-[11px] text-muted">
+            Придёт SMS с кодом подтверждения.
+          </p>
+        </>
+      )}
+    </div>
+  )
+
+  const roleSelect = (
+    <div className="rounded-xl bg-cream p-3">
+      <p className="text-[12px] font-bold text-ink">Кем ты хочешь быть?</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {(
+          [
+            { value: 'participant', title: 'Участник', desc: 'Ищу команду и принимаю заявки' },
+            { value: 'organizer', title: 'Организатор', desc: 'Создаю команды и собираю людей' },
+          ] as const
+        ).map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setRole(option.value)}
+            className={`rounded-xl border px-3 py-2.5 text-left transition ${
+              role === option.value
+                ? 'border-brand bg-white shadow-sm'
+                : 'border-ink/10 bg-white/50 hover:border-brand/40'
+            }`}
+          >
+            <span className="block text-[13px] font-extrabold text-ink">{option.title}</span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-muted">{option.desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  const hobbiesField = (
+    <div>
+      <div className="flex gap-2">
+        <input
+          className={inputClass}
+          placeholder="Хобби (например: футбол, кино)"
+          value={hobby}
+          onChange={(event) => setHobby(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              addHobby()
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={addHobby}
+          className="shrink-0 rounded-xl bg-brand-soft px-3 text-lg font-bold text-brand hover:bg-brand hover:text-white"
+          aria-label="Добавить хобби"
+        >
+          +
+        </button>
+      </div>
+      {hobbies.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {hobbies.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setHobbies(hobbies.filter((h) => h !== item))}
+              className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-semibold text-brand"
+            >
+              {item} ✕
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <p className="mt-1.5 text-[11px] text-muted">
+        Хобби нужны для персональных рекомендаций команд и сфер.
+      </p>
+    </div>
+  )
 
   return (
     <div
@@ -122,53 +350,98 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
             </p>
           ) : null}
 
+          {firebaseEnabled ? (
+            <div className="mb-4">
+              {contactToggle}
+              <div id="fb-recaptcha" className="hidden" />
+            </div>
+          ) : null}
+
           {mode === 'login' ? (
-            <form
-              className="space-y-3"
-              onSubmit={(event) => {
-                event.preventDefault()
-                handleLogin()
-              }}
-            >
-              <input
-                className={inputClass}
-                placeholder="Логин"
-                value={loginValue}
-                onChange={(event) => setLoginValue(event.target.value)}
-              />
-              <input
-                className={inputClass}
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              <button
-                type="submit"
-                className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark"
+            firebaseEnabled && contact === 'phone' ? (
+              phoneForm(false)
+            ) : (
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void handleLogin()
+                }}
               >
-                Войти
-              </button>
-              <p className="text-center text-[12px] text-muted">
-                Ещё нет аккаунта?{' '}
+                <input
+                  className={inputClass}
+                  placeholder={firebaseEnabled ? 'Email или логин' : 'Логин'}
+                  value={loginValue}
+                  onChange={(event) => setLoginValue(event.target.value)}
+                />
+                <input
+                  className={inputClass}
+                  type="password"
+                  placeholder="Пароль"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
                 <button
-                  type="button"
-                  className="font-semibold text-brand hover:text-brand-dark"
-                  onClick={() => {
-                    setMode('register')
-                    setError(null)
-                  }}
+                  type="submit"
+                  className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark"
                 >
-                  Зарегистрируйся
+                  Войти
                 </button>
-              </p>
-            </form>
+                <p className="text-center text-[12px] text-muted">
+                  Ещё нет аккаунта?{' '}
+                  <button
+                    type="button"
+                    className="font-semibold text-brand hover:text-brand-dark"
+                    onClick={() => {
+                      setMode('register')
+                      setError(null)
+                    }}
+                  >
+                    Зарегистрируйся
+                  </button>
+                </p>
+              </form>
+            )
+          ) : firebaseEnabled && contact === 'phone' ? (
+            <div className="space-y-3">
+              {roleSelect}
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  className={inputClass}
+                  placeholder="Имя"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Фамилия"
+                  value={surname}
+                  onChange={(event) => setSurname(event.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  className={inputClass}
+                  placeholder="Город"
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Telegram (@юзер)"
+                  value={telegram}
+                  onChange={(event) => setTelegram(event.target.value)}
+                />
+              </div>
+              {hobbiesField}
+              {phoneForm(true)}
+            </div>
           ) : (
             <form
               className="space-y-3"
               onSubmit={(event) => {
                 event.preventDefault()
-                handleRegister()
+                void handleRegister()
               }}
             >
               <div className="grid grid-cols-2 gap-3">
@@ -201,7 +474,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               </div>
               <input
                 className={inputClass}
-                placeholder="Логин"
+                placeholder={firebaseEnabled ? 'Email' : 'Логин'}
                 value={loginValue}
                 onChange={(event) => setLoginValue(event.target.value)}
               />
@@ -212,82 +485,17 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              <div className="rounded-xl bg-cream p-3">
-                <p className="text-[12px] font-bold text-ink">Кем ты хочешь быть?</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      { value: 'participant', title: 'Участник', desc: 'Ищу команду и принимаю заявки' },
-                      { value: 'organizer', title: 'Организатор', desc: 'Создаю команды и собираю людей' },
-                    ] as const
-                  ).map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setRole(option.value)}
-                      className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                        role === option.value
-                          ? 'border-brand bg-white shadow-sm'
-                          : 'border-ink/10 bg-white/50 hover:border-brand/40'
-                      }`}
-                    >
-                      <span className="block text-[13px] font-extrabold text-ink">
-                        {option.title}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-muted">
-                        {option.desc}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="flex gap-2">
-                  <input
-                    className={inputClass}
-                    placeholder="Хобби (например: футбол, кино)"
-                    value={hobby}
-                    onChange={(event) => setHobby(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault()
-                        addHobby()
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={addHobby}
-                    className="shrink-0 rounded-xl bg-brand-soft px-3 text-lg font-bold text-brand hover:bg-brand hover:text-white"
-                    aria-label="Добавить хобби"
-                  >
-                    +
-                  </button>
-                </div>
-                {hobbies.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {hobbies.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setHobbies(hobbies.filter((h) => h !== item))}
-                        className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-semibold text-brand"
-                      >
-                        {item} ✕
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <p className="mt-1.5 text-[11px] text-muted">
-                  Хобби нужны для персональных рекомендаций команд и сфер.
-                </p>
-              </div>
+              {roleSelect}
+              {hobbiesField}
               <button
                 type="submit"
                 className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark"
               >
                 Создать аккаунт
               </button>
+              <p className="text-center text-[11px] text-muted">
+                На почту придёт письмо для подтверждения аккаунта.
+              </p>
             </form>
           )}
         </div>
