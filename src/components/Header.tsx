@@ -36,6 +36,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
         <nav className="hidden items-center gap-5 text-sm font-semibold text-ink md:flex">
           <a href="#spheres" className="hover:text-brand">Сферы</a>
           <a href="#teams" className="hover:text-brand">Команды</a>
+          <a href="#for-you" className="hover:text-brand">Для тебя</a>
           <button type="button" onClick={onOpenChat} className="hover:text-brand">Чат</button>
         </nav>
 

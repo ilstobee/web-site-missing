@@ -5,6 +5,7 @@ import { Hero } from './components/Hero'
 import { CategoryGrid } from './components/CategoryGrid'
 import { FeaturedTeams } from './components/FeaturedTeams'
 import { CreateBanner } from './components/CreateBanner'
+import { RecommendedTeams } from './components/RecommendedTeams'
 import { StatsBar } from './components/StatsBar'
 import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
@@ -54,6 +55,7 @@ export default function App() {
         />
         <FeaturedTeams onOpenAuth={openAuth} />
         <CreateBanner onOpenAuth={openAuth} />
+        <RecommendedTeams />
         <StatsBar />
       </main>
       <Footer />

@@ -12,7 +12,7 @@ type Props = {
   onOpenAuth(): void
 }
 
-function customToTeam(team: CustomTeam): Team {
+export function customToTeam(team: CustomTeam): Team {
   return {
     id: team.id,
     title: team.title,
