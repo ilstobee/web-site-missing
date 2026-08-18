@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { asset, featuredTeams, socialAvatars } from '../data'
+import { asset, socialAvatars } from '../data'
 import type { Team } from '../data'
 import { useApp } from '../store'
 import type { CustomTeam } from '../store'
@@ -41,7 +41,7 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
   const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
 
   const allTeams = useMemo<Team[]>(
-    () => [...featuredTeams, ...db.customTeams.map(customToTeam)],
+    () => db.customTeams.map(customToTeam),
     [db.customTeams],
   )
 
