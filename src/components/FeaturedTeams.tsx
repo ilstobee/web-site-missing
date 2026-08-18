@@ -6,6 +6,7 @@ import type { CustomTeam } from '../store'
 import { SectionHeader } from './SectionHeader'
 import { TeamCard } from './TeamCard'
 import { ApplyModal } from './ApplyModal'
+import { TeamReviewModal } from './TeamReviewModal'
 
 type Props = {
   onOpenAuth(): void
@@ -25,6 +26,7 @@ function customToTeam(team: CustomTeam): Team {
     category: team.category,
     city: team.city,
     difficulty: team.difficulty,
+    creatorId: team.creatorId,
   }
 }
 
@@ -36,6 +38,7 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
   const [people, setPeople] = useState('all')
   const [difficulty, setDifficulty] = useState('all')
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
+  const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
 
   const allTeams = useMemo<Team[]>(
     () => [...featuredTeams, ...db.customTeams.map(customToTeam)],
@@ -116,7 +119,12 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
         <div className="relative">
           <div ref={scroller} className="hide-scroll flex gap-4 overflow-x-auto pb-2">
             {filtered.map((team) => (
-              <TeamCard key={team.id} team={team} onApply={handleApply} />
+              <TeamCard
+                key={team.id}
+                team={team}
+                onApply={handleApply}
+                onReview={setReviewTeam}
+              />
             ))}
             {filtered.length === 0 ? (
               <p className="rounded-2xl bg-blush px-6 py-10 text-[14px] font-medium text-muted">
@@ -136,6 +144,7 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
       </div>
 
       {applyTeam ? <ApplyModal team={applyTeam} onClose={() => setApplyTeam(null)} /> : null}
+      {reviewTeam ? <TeamReviewModal team={reviewTeam} onClose={() => setReviewTeam(null)} /> : null}
     </section>
   )
 }

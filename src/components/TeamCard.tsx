@@ -7,7 +7,15 @@ const actionLabel: Record<Team['action'], string> = {
   watch: 'Посмотреть',
 }
 
-export function TeamCard({ team, onApply }: { team: Team; onApply(team: Team): void }) {
+export function TeamCard({
+  team,
+  onApply,
+  onReview,
+}: {
+  team: Team
+  onApply(team: Team): void
+  onReview?(team: Team): void
+}) {
   const [saved, setSaved] = useState(false)
 
   return (
@@ -54,21 +62,33 @@ export function TeamCard({ team, onApply }: { team: Team; onApply(team: Team): v
           >
             {actionLabel[team.action]}
           </button>
-          <button
-            type="button"
-            onClick={() => setSaved((value) => !value)}
-            className={saved ? 'text-brand' : 'text-muted'}
-            aria-label="Сохранить команду"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill={saved ? 'currentColor' : 'none'} aria-hidden>
-              <path
-                d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onReview ? (
+              <button
+                type="button"
+                onClick={() => onReview(team)}
+                className="rounded-full border border-brand/30 px-3 py-2 text-[12px] font-semibold text-brand hover:bg-brand-soft"
+                aria-label="Оставить отзыв о команде"
+              >
+                Отзыв
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSaved((value) => !value)}
+              className={saved ? 'text-brand' : 'text-muted'}
+              aria-label="Сохранить команду"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill={saved ? 'currentColor' : 'none'} aria-hidden>
+                <path
+                  d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </article>

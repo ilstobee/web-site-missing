@@ -35,6 +35,7 @@ export type Team = {
   category: string
   city: string
   difficulty: 'Легко' | 'Средне' | 'Сложно'
+  creatorId?: string
 }
 
 const av = [

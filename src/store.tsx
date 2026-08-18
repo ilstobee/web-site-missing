@@ -6,6 +6,8 @@ import { censor } from './profanity'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
 
+export type UserRole = 'organizer' | 'participant'
+
 export type User = {
   id: string
   name: string
@@ -15,6 +17,7 @@ export type User = {
   telegram: string
   city: string
   hobbies: string[]
+  role: UserRole
   createdAt: string
 }
 
@@ -76,6 +79,18 @@ export type CustomTeam = {
   createdAt: string
 }
 
+export type TeamReview = {
+  id: string
+  teamId: string
+  teamTitle: string
+  sphereId: string
+  userId: string
+  authorName: string
+  rating: number
+  text: string
+  createdAt: string
+}
+
 export type ChatMessage = {
   id: string
   authorName: string
@@ -93,6 +108,7 @@ type DB = {
   users: User[]
   sessionUserId: string | null
   reviews: Review[]
+  teamReviews: TeamReview[]
   applications: Application[]
   notifications: Notification[]
   customCategories: CustomCategory[]
@@ -109,6 +125,7 @@ export type RegisterInput = {
   telegram: string
   city: string
   hobbies: string[]
+  role: UserRole
 }
 
 export type NewApplication = {
@@ -142,8 +159,12 @@ type AppContextValue = {
   login(login: string, password: string): string | null
   logout(): void
   updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
+  setUserRole(role: UserRole): void
   changePassword(current: string, next: string): string | null
   addReview(sphereId: string, rating: number, text: string): void
+  removeReview(id: string): void
+  addTeamReview(teamId: string, teamTitle: string, sphereId: string, rating: number, text: string): void
+  removeTeamReview(id: string): void
   addApplication(input: NewApplication): void
   setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
   addCategory(name: string): string | null
@@ -161,6 +182,7 @@ const emptyDB: DB = {
   users: [],
   sessionUserId: null,
   reviews: [],
+  teamReviews: [],
   applications: [],
   notifications: [],
   customCategories: [],
@@ -175,7 +197,11 @@ function loadDB(): DB {
     const raw = window.localStorage.getItem(DB_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<DB>
-      return { ...emptyDB, ...parsed }
+      const merged = { ...emptyDB, ...parsed }
+      merged.users = (merged.users ?? []).map((candidate) =>
+        candidate.role ? candidate : { ...candidate, role: 'participant' },
+      )
+      return merged
     }
   } catch {
     // ignore corrupted storage
@@ -253,7 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const login = input.login.trim().toLowerCase()
       if (!input.name.trim() || !input.surname.trim()) return 'Заполни имя и фамилию'
       if (!login) return 'Придумай логин'
-      if (input.password.length < 4) return 'Пароль должен быть минимум 4 символа'
+      if (input.password.length < 8) return 'Пароль должен быть минимум 8 символов'
       if (!input.city.trim()) return 'Укажи свой город'
       if (!input.telegram.trim()) return 'Укажи свой Telegram'
       if (db.users.some((existing) => existing.login === login)) return 'Такой логин уже занят'
@@ -267,6 +293,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         telegram: input.telegram.trim(),
         city: input.city.trim(),
         hobbies: input.hobbies.map((hobby) => hobby.trim()).filter(Boolean),
+        role: input.role,
         createdAt: new Date().toISOString(),
       }
       mutate((d) => ({ ...d, users: [...d.users, newUser], sessionUserId: newUser.id }))
@@ -306,7 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const changePassword = (current: string, next: string): string | null => {
       if (!user) return 'Сначала войди в аккаунт'
       if (user.password !== hashPassword(current)) return 'Текущий пароль неверный'
-      if (next.length < 4) return 'Новый пароль слишком короткий (минимум 4 символа)'
+      if (next.length < 8) return 'Новый пароль слишком короткий (минимум 8 символов)'
       mutate((d) => ({
         ...d,
         users: d.users.map((candidate) =>
@@ -314,6 +341,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       }))
       return null
+    }
+
+    const setUserRole = (role: UserRole) => {
+      if (!user) return
+      mutate((d) => ({
+        ...d,
+        users: d.users.map((candidate) =>
+          candidate.id === user.id ? { ...candidate, role } : candidate,
+        ),
+      }))
     }
 
     const addReview = (sphereId: string, rating: number, text: string) => {
@@ -330,8 +367,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({ ...d, reviews: [review, ...d.reviews] }))
     }
 
+    const addTeamReview = (
+      teamId: string,
+      teamTitle: string,
+      sphereId: string,
+      rating: number,
+      text: string,
+    ) => {
+      if (!user) return
+      const review: TeamReview = {
+        id: uid(),
+        teamId,
+        teamTitle,
+        sphereId,
+        userId: user.id,
+        authorName: `${user.name} ${user.surname}`.trim(),
+        rating,
+        text: censor(text),
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, teamReviews: [review, ...d.teamReviews] }))
+    }
+
+    const removeReview = (id: string) => {
+      if (!user) return
+      mutate((d) => ({
+        ...d,
+        reviews: d.reviews.filter((review) => !(review.id === id && review.userId === user.id)),
+      }))
+    }
+
+    const removeTeamReview = (id: string) => {
+      if (!user) return
+      mutate((d) => ({
+        ...d,
+        teamReviews: d.teamReviews.filter(
+          (review) => !(review.id === id && review.userId === user.id),
+        ),
+      }))
+    }
+
     const addApplication = (input: NewApplication) => {
       if (!user) return
+      const team = db.customTeams.find((candidate) => candidate.id === input.teamId)
+      if (team && team.creatorId === user.id) return
       const application: Application = {
         id: uid(),
         ...input,
@@ -341,7 +420,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: 'pending',
         createdAt: new Date().toISOString(),
       }
-      mutate((d) => ({ ...d, applications: [application, ...d.applications] }))
+      mutate((d) => {
+        const team = d.customTeams.find((candidate) => candidate.id === input.teamId)
+        let notifications = [...d.notifications]
+        if (team) {
+          const notification: Notification = {
+            id: uid(),
+            userId: team.creatorId,
+            text: `📩 ${application.userName} оставил(а) заявку в твою команду «${team.title}»! Загляни в личный кабинет.`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          }
+          notifications = [notification, ...notifications]
+        }
+        return { ...d, applications: [application, ...d.applications], notifications }
+      })
     }
 
     const setApplicationStatus = (id: string, status: 'accepted' | 'rejected') => {
@@ -353,8 +446,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         )
         const text =
           status === 'accepted'
-            ? `🎉 Сфера «${application.sphereName}» приняла твою заявку в команду «${application.teamTitle}»! Это «мис» от сферы — ждём тебя!`
-            : `Сфера «${application.sphereName}» пока не приняла твою заявку в команду «${application.teamTitle}». Попробуй другие сферы!`
+            ? `🎉 Твою заявку в команду «${application.teamTitle}» приняли! Организатор ждёт тебя в команде.`
+            : `Твою заявку в команду «${application.teamTitle}» отклонили. Попробуй другие команды!`
         const notification: Notification = {
           id: uid(),
           userId: application.userId,
@@ -396,16 +489,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({
         ...d,
         customTeams: [team, ...d.customTeams],
-        notifications: [
-          {
-            id: uid(),
-            userId: user.id,
-            text: `🚀 Команда «${team.title}» создана в сфере «${team.category}»!`,
-            read: false,
-            createdAt: new Date().toISOString(),
-          },
-          ...d.notifications,
-        ],
       }))
     }
 
@@ -467,8 +550,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       updateProfile,
+      setUserRole,
       changePassword,
       addReview,
+      removeReview,
+      addTeamReview,
+      removeTeamReview,
       addApplication,
       setApplicationStatus,
       addCategory,

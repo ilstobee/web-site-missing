@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../store'
+import type { UserRole } from '../store'
 
 type Props = {
   open: boolean
@@ -22,6 +23,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [telegram, setTelegram] = useState('')
   const [hobby, setHobby] = useState('')
   const [hobbies, setHobbies] = useState<string[]>([])
+  const [role, setRole] = useState<UserRole>('participant')
 
   const [error, setError] = useState<string | null>(null)
 
@@ -45,7 +47,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   }
 
   const handleRegister = () => {
-    const err = register({ name, surname, login: loginValue, password, telegram, city, hobbies })
+    const err = register({ name, surname, login: loginValue, password, telegram, city, hobbies, role })
     if (err) {
       setError(err)
       return
@@ -65,6 +67,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setTelegram('')
     setHobby('')
     setHobbies([])
+    setRole('participant')
     setError(null)
   }
 
@@ -205,10 +208,39 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               <input
                 className={inputClass}
                 type="password"
-                placeholder="Пароль (минимум 4 символа)"
+                placeholder="Пароль (минимум 8 символов)"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              <div className="rounded-xl bg-cream p-3">
+                <p className="text-[12px] font-bold text-ink">Кем ты хочешь быть?</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { value: 'participant', title: 'Участник', desc: 'Ищу команду и принимаю заявки' },
+                      { value: 'organizer', title: 'Организатор', desc: 'Создаю команды и собираю людей' },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setRole(option.value)}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                        role === option.value
+                          ? 'border-brand bg-white shadow-sm'
+                          : 'border-ink/10 bg-white/50 hover:border-brand/40'
+                      }`}
+                    >
+                      <span className="block text-[13px] font-extrabold text-ink">
+                        {option.title}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-muted">
+                        {option.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div className="flex gap-2">
                   <input

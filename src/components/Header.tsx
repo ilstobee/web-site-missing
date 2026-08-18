@@ -5,12 +5,18 @@ import { fmtDate, useApp } from '../store'
 type Props = {
   onOpenAuth(): void
   onOpenLK(): void
+  onOpenApplications(): void
   onOpenChat(): void
 }
 
-export function Header({ onOpenAuth, onOpenLK, onOpenChat }: Props) {
+export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }: Props) {
   const { user, db, logout, markAllNotificationsRead } = useApp()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+
+  const handleNotificationClick = () => {
+    setNotificationsOpen(false)
+    onOpenApplications()
+  }
 
   const myNotifications = user
     ? db.notifications
@@ -30,7 +36,6 @@ export function Header({ onOpenAuth, onOpenLK, onOpenChat }: Props) {
         <nav className="hidden items-center gap-5 text-sm font-semibold text-ink md:flex">
           <a href="#spheres" className="hover:text-brand">Сферы</a>
           <a href="#teams" className="hover:text-brand">Команды</a>
-          <a href="#for-you" className="hover:text-brand">Для тебя</a>
           <button type="button" onClick={onOpenChat} className="hover:text-brand">Чат</button>
         </nav>
 
@@ -79,13 +84,15 @@ export function Header({ onOpenAuth, onOpenLK, onOpenChat }: Props) {
                     </p>
                   ) : (
                     myNotifications.map((notification) => (
-                      <div
+                      <button
                         key={notification.id}
-                        className={`border-b border-cream px-4 py-3 ${notification.read ? 'bg-white' : 'bg-brand-soft'}`}
+                        type="button"
+                        onClick={handleNotificationClick}
+                        className={`block w-full border-b border-cream px-4 py-3 text-left transition hover:bg-cream ${notification.read ? 'bg-white' : 'bg-brand-soft'}`}
                       >
                         <p className="text-[13px] leading-snug text-ink">{notification.text}</p>
                         <p className="mt-1 text-[11px] text-muted">{fmtDate(notification.createdAt)}</p>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>

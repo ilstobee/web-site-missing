@@ -19,6 +19,8 @@ export function ApplyModal({ team, onClose }: Props) {
   const [review, setReview] = useState('')
   const [sent, setSent] = useState(false)
 
+  const isOwn = !!user && team.creatorId === user.id
+
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white'
 
@@ -69,12 +71,27 @@ export function ApplyModal({ team, onClose }: Props) {
           </button>
         </div>
 
-        {sent ? (
+        {isOwn ? (
+          <div className="mt-6 rounded-2xl bg-brand-soft p-6 text-center">
+            <p className="text-2xl">🙅</p>
+            <p className="mt-2 text-[15px] font-extrabold text-ink">Это твоя команда!</p>
+            <p className="mt-1 text-[13px] text-muted">
+              Нельзя подать заявку в свою собственную команду.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+            >
+              Понятно
+            </button>
+          </div>
+        ) : sent ? (
           <div className="mt-6 rounded-2xl bg-brand-soft p-6 text-center">
             <p className="text-2xl">🎉</p>
             <p className="mt-2 text-[15px] font-extrabold text-ink">Заявка отправлена!</p>
             <p className="mt-1 text-[13px] text-muted">
-              Когда сфера примет заявку, тебе придёт «мис» в уведомления.
+              Заявка сохранилась в твоём личном кабинете. Когда организатор ответит, тебе придёт уведомление.
             </p>
             <button
               type="button"
