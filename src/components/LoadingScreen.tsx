@@ -18,32 +18,60 @@ export function LoadingScreen({ onDone }: Props) {
     let anim: AnimationItem | null = null
     let finished = false
     let fallbackTimer = 0
+    let minTimer = 0
+
     const finish = () => {
       if (finished) return
       finished = true
       window.clearTimeout(fallbackTimer)
-      anim?.destroy()
+      window.clearTimeout(minTimer)
+      window.removeEventListener('load', ready)
+      if (anim) {
+        try {
+          anim.destroy()
+        } catch {
+          /* noop */
+        }
+        anim = null
+      }
       doneRef.current()
+    }
+
+    const ready = () => {
+      if (finished) return
+      if (document.readyState === 'complete') {
+        finish()
+      }
     }
 
     try {
       anim = lottie.loadAnimation({
         container,
         renderer: 'svg',
-        loop: false,
+        loop: true,
         autoplay: true,
         path: `${import.meta.env.BASE_URL}loading.json`,
       })
-      anim.addEventListener('complete', finish)
     } catch {
       finish()
     }
-    fallbackTimer = window.setTimeout(finish, 7000)
+
+    window.addEventListener('load', ready)
+    minTimer = window.setTimeout(ready, 2000)
+    fallbackTimer = window.setTimeout(finish, 6000)
 
     return () => {
       window.clearTimeout(fallbackTimer)
-      anim?.removeEventListener('complete', finish)
-      anim?.destroy()
+      window.clearTimeout(minTimer)
+      window.removeEventListener('load', ready)
+      if (anim) {
+        try {
+          anim.destroy()
+        } catch {
+          /* noop */
+        }
+        anim = null
+      }
     }
   }, [])
 
