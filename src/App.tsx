@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from './store'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
@@ -44,6 +44,31 @@ export default function App() {
     setActiveSphere(id)
     recordVisit(id)
   }
+
+  useEffect(() => {
+    if (loading) return
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('#top > main > *'))
+    if (!('IntersectionObserver' in window)) {
+      sections.forEach((el) => el.classList.add('is-visible'))
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible')
+            observer.unobserve(entry.target)
+          }
+        }
+      },
+      { threshold: 0.12 },
+    )
+    sections.forEach((el) => {
+      el.classList.add('reveal')
+      observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [loading])
 
   if (loading) {
     return <LoadingScreen onDone={() => setLoading(false)} />

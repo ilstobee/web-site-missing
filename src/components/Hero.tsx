@@ -45,7 +45,7 @@ export function Hero() {
           </a>
         </div>
 
-        <div className="mt-7 flex items-center gap-3">
+        <div className="mt-7 flex flex-wrap items-center gap-3">
           <div className="flex -space-x-2.5">
             {socialAvatars.map((src) => (
               <img
