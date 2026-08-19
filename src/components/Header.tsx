@@ -143,6 +143,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
           )}
         </div>
       </div>
+      <div className="wave-strip" aria-hidden />
     </header>
   )
 }

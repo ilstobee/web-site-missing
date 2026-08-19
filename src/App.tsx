@@ -77,7 +77,6 @@ export default function App() {
 
   return (
     <div id="top" className="min-h-svh wave-top">
-      <div className="wave-strip" aria-hidden />
       <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={() => {}} />
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>

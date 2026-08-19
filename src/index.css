@@ -14,7 +14,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 112px;
+  scroll-padding-top: 140px;
 }
 
 @keyframes boot-spin {
