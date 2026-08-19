@@ -52,7 +52,6 @@ export const categories: Category[] = [
     id: 'travel',
     name: 'Путешествия',
     icon: asset('images/icons/travel.png'),
-    tint: 'bg-[#e7f3ff]',
     info: {
       title: 'Найди свою команду для путешествий!',
       subtitle: 'Здесь ты можешь найти единомышленников для совместных приключений, исследований и незабываемых поездок.',
