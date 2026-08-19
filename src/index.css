@@ -17,6 +17,12 @@ html {
   scroll-padding-top: 88px;
 }
 
+@keyframes boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(18px);

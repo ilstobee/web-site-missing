@@ -12,6 +12,7 @@ export function LoadingScreen({ onDone }: Props) {
   doneRef.current = onDone
 
   useEffect(() => {
+    document.getElementById('boot-splash')?.remove()
     const container = containerRef.current
     if (!container) return
 
@@ -19,6 +20,10 @@ export function LoadingScreen({ onDone }: Props) {
     let finished = false
     let fallbackTimer = 0
     let minTimer = 0
+
+    const spinner = container.parentElement?.querySelector(
+      '[data-boot-spinner]',
+    ) as HTMLElement | null
 
     const finish = () => {
       if (finished) return
@@ -44,6 +49,11 @@ export function LoadingScreen({ onDone }: Props) {
         autoplay: true,
         path: `${import.meta.env.BASE_URL}loading.json?v=3`,
       })
+      if (anim) {
+        anim.addEventListener('DOMLoaded', () => {
+          if (spinner) spinner.style.display = 'none'
+        })
+      }
     } catch {
       finish()
     }
@@ -67,7 +77,12 @@ export function LoadingScreen({ onDone }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-white">
-      <div ref={containerRef} className="w-full max-w-xl" />
+      <div
+        data-boot-spinner
+        className="absolute h-16 w-16 rounded-full border-[5px] border-[#fde7ea] border-t-[#f7566d]"
+        style={{ animation: 'boot-spin 0.9s linear infinite' }}
+      />
+      <div ref={containerRef} className="relative w-full max-w-xl" />
     </div>
   )
 }
