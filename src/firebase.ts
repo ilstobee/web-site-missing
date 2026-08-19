@@ -245,7 +245,10 @@ export async function setCategoryStatusFb(id: string, status: ModerationStatus):
 export async function addTeamFb(team: CustomTeam): Promise<void> {
   if (!db) return
   const { id: _id, ...data } = team
-  await addDoc(collection(db, 'teams'), data)
+  const cleaned = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  )
+  await addDoc(collection(db, 'teams'), cleaned)
 }
 
 export async function addCategoryFb(category: CustomCategory): Promise<string> {
