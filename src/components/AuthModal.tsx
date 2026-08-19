@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp, isValidEmail } from '../store'
+import { useApp, isValidEmail, ERR_NOT_REGISTERED } from '../store'
 import type { UserRole } from '../store'
 import { firebaseEnabled } from '../firebase'
 
@@ -359,9 +359,22 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
           ) : null}
 
           {error ? (
-            <p className="mb-4 rounded-xl bg-brand-soft px-4 py-2.5 text-[13px] font-medium text-brand">
-              {error}
-            </p>
+            <div className="mb-4 rounded-xl bg-brand-soft px-4 py-2.5 text-[13px] font-medium text-brand">
+              <p>{error}</p>
+              {error === ERR_NOT_REGISTERED ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register')
+                    setError(null)
+                    setInfo(null)
+                  }}
+                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand px-4 py-1.5 text-[12px] font-bold text-white transition hover:bg-brand-dark"
+                >
+                  Зарегистрироваться →
+                </button>
+              ) : null}
+            </div>
           ) : null}
           {info ? (
             <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-2.5 text-[13px] font-medium text-emerald-700">

@@ -10,6 +10,7 @@ import {
   updateEmail,
   reload,
   updatePassword,
+  fetchSignInMethodsForEmail,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   PhoneAuthProvider,
@@ -99,6 +100,16 @@ export async function changeEmailFb(next: string): Promise<void> {
 export async function signInWithEmail(email: string, password: string): Promise<void> {
   if (!auth) throw new Error('Firebase не настроен')
   await signInWithEmailAndPassword(auth, email, password)
+}
+
+export async function emailRegisteredFb(email: string): Promise<boolean> {
+  if (!auth) return false
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email)
+    return methods.length > 0
+  } catch {
+    return true
+  }
 }
 
 export async function signOutFb(): Promise<void> {
@@ -289,7 +300,8 @@ export function fbErrorMessage(error: unknown): string {
   if (message.includes('invalid-verification-code')) return 'Неверный код подтверждения'
   if (message.includes('invalid-phone-number')) return 'Некорректный номер телефона'
   if (message.includes('wrong-password')) return 'Неверный пароль'
-  if (message.includes('user-not-found')) return 'Пользователь не найден'
+  if (message.includes('user-not-found'))
+    return 'Такого аккаунта нет. Сначала зарегистрируйся'
   if (message.includes('too-many-requests')) return 'Слишком много попыток. Попробуй позже'
   if (message.includes('captcha')) return 'Не удалось пройти проверку. Попробуй ещё раз'
   return 'Что-то пошло не так. Попробуй ещё раз'

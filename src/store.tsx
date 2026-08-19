@@ -11,6 +11,7 @@ import {
   subscribePendingTeamsFb,
   subscribePendingCategoriesFb,
   signInWithEmail,
+  emailRegisteredFb,
   signUpWithEmail,
   signOutFb,
   changePasswordFb,
@@ -34,6 +35,8 @@ import {
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
 
 export type UserRole = 'organizer' | 'participant'
+
+export const ERR_NOT_REGISTERED = 'Такого аккаунта нет. Сначала зарегистрируйся'
 
 export type ModerationStatus = 'pending' | 'approved' | 'rejected'
 
@@ -619,12 +622,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await signInWithEmail(email, password)
           return null
         } catch (error) {
+          if (!(await emailRegisteredFb(email))) return ERR_NOT_REGISTERED
           return fbErrorMessage(error)
         }
       }
       const normalized = rawLogin.trim().toLowerCase()
       const found = db.users.find((candidate) => candidate.login === normalized)
-      if (!found || found.password !== hashPassword(password)) return 'Неверный логин или пароль'
+      if (!found) return ERR_NOT_REGISTERED
+      if (found.password !== hashPassword(password)) return 'Неверный пароль'
       mutate((d) => ({ ...d, sessionUserId: found.id }))
       return null
     }
