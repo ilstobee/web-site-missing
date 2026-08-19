@@ -17,6 +17,8 @@ export function CreateBanner({ onOpenAuth }: Props) {
   const [difficulty, setDifficulty] = useState<Difficulty>('Легко')
   const [capacity, setCapacity] = useState(5)
   const [image, setImage] = useState('')
+  const [preview, setPreview] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [done, setDone] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -26,25 +28,38 @@ export function CreateBanner({ onOpenAuth }: Props) {
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand'
 
-  const pickImage = async (file: File | undefined) => {
-    if (!file) return
-    setUploading(true)
-    try {
-      const url = await uploadCover(file, title.trim() || 'team')
-      setImage(url)
-    } catch {
-      setImage('')
-    } finally {
-      setUploading(false)
-    }
+  const clearImage = () => {
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview('')
+    setFile(null)
+    setImage('')
+    if (fileRef.current) fileRef.current.value = ''
   }
 
-  const submit = () => {
+  const pickImage = (file: File | undefined) => {
+    if (!file) return
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(URL.createObjectURL(file))
+    setFile(file)
+    setImage('')
+  }
+
+  const submit = async () => {
     if (!user) {
       onOpenAuth()
       return
     }
     if (!title.trim() || !selected || capacity < 2) return
+    let cover = image
+    if (file) {
+      setUploading(true)
+      try {
+        cover = await uploadCover(file, title.trim() || 'team')
+        setImage(cover)
+      } catch {
+        cover = ''
+      }
+    }
     addTeam({
       title: title.trim(),
       category: selected.name,
@@ -54,11 +69,11 @@ export function CreateBanner({ onOpenAuth }: Props) {
       difficulty,
       capacity,
       tags: [selected.name],
-      image: image || undefined,
+      image: cover || undefined,
     })
+    clearImage()
     setTitle('')
     setDescription('')
-    setImage('')
     setDone(true)
     window.setTimeout(() => setDone(false), 4000)
   }
@@ -150,24 +165,35 @@ export function CreateBanner({ onOpenAuth }: Props) {
                   className="hidden"
                   onChange={(event) => void pickImage(event.target.files?.[0])}
                 />
-                {image ? (
+                {preview ? (
                   <div className="relative overflow-hidden rounded-xl border border-brand/30">
-                    <img src={image} alt="Обложка команды" className="h-40 w-full object-cover" />
-                    <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-ink/50 p-2">
-                      <button
-                        type="button"
-                        onClick={() => fileRef.current?.click()}
-                        className="rounded-full bg-white px-4 py-1.5 text-[12px] font-semibold text-ink transition hover:bg-cream"
+                    <img src={preview} alt="Обложка команды" className="h-40 w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-ink/50 p-2">
+                      <span
+                        className={`text-[11px] font-semibold ${uploading ? 'text-white' : 'text-white/90'}`}
                       >
-                        {uploading ? 'Загружаю…' : 'Заменить фото'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImage('')}
-                        className="rounded-full border border-white/60 px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-white/20"
-                      >
-                        Убрать
-                      </button>
+                        {uploading
+                          ? 'Загружаю на сервер…'
+                          : image
+                            ? '✓ Обложка загружена'
+                            : 'Обложка загрузится при создании'}
+                      </span>
+                      <div className="ml-auto flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileRef.current?.click()}
+                          className="rounded-full bg-white px-4 py-1.5 text-[12px] font-semibold text-ink transition hover:bg-cream"
+                        >
+                          Заменить фото
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearImage}
+                          className="rounded-full border border-white/60 px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-white/20"
+                        >
+                          Убрать
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
