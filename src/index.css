@@ -50,12 +50,32 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: #fff5f2;
-  color: #2d2d2d;
+  background: var(--color-blush);
+  color: var(--color-ink);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: geometricPrecision;
+}
+
+.dark {
+  --color-ink: #f0f0f0;
+  --color-muted: #a3a3a3;
+  --color-cream: #262626;
+  --color-blush: #171717;
+  --color-brand-soft: #45202a;
+}
+
+.dark .bg-white {
+  background-color: #202020;
+}
+
+.dark .bg-white\/60 {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .bg-white\/50 {
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 #root {
@@ -63,7 +83,7 @@ body {
 }
 
 .wave-top {
-  background: #fff5f2;
+  background: var(--color-blush);
 }
 
 .wave-strip {

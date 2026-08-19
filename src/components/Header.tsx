@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Logo } from './Logo'
 import { fmtDate, useApp } from '../store'
 
@@ -12,6 +12,19 @@ type Props = {
 export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }: Props) {
   const { user, db, logout, markAllNotificationsRead } = useApp()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [dark, setDark] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('missing_theme') === 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+    try {
+      window.localStorage.setItem('missing_theme', dark ? 'dark' : 'light')
+    } catch {
+      // ignore
+    }
+  }, [dark])
 
   const handleNotificationClick = (chatId?: string) => {
     setNotificationsOpen(false)
@@ -62,6 +75,37 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
               <path d="M7.5 9h9M7.5 12.5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDark((value) => !value)}
+              className="grid h-10 w-10 place-items-center text-ink"
+              aria-label={dark ? 'Светлая тема' : 'Тёмная тема'}
+              title={dark ? 'Светлая тема' : 'Тёмная тема'}
+            >
+              {dark ? (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+                  <path
+                    d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                  <path
+                    d="M20 13.5A8.5 8.5 0 0 1 10.5 4a8.5 8.5 0 1 0 9.5 9.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
 
           <div className="relative">
             <button

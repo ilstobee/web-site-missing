@@ -377,7 +377,8 @@ const active = selectedId ? resolveChat(selectedId) : null
           ) : null}
 
           {showConversation ? (
-            <div className="flex min-w-0 flex-1 flex-col">
+            active ? (
+              <div className="flex min-w-0 flex-1 flex-col">
               <div className="flex items-center gap-2 border-b border-cream px-4 py-2.5">
                 {!isDesktop ? (
                   <button
@@ -488,7 +489,26 @@ const active = selectedId ? resolveChat(selectedId) : null
                   Отправить
                 </button>
               </div>
-            </div>
+              </div>
+            ) : (
+              <div className="hidden min-w-0 flex-1 flex-col items-center justify-center gap-2 bg-blush/40 md:flex">
+                <span className="grid h-16 w-16 place-items-center rounded-full bg-cream">
+                  <svg viewBox="0 0 24 24" className="h-8 w-8 text-muted" fill="none" aria-hidden>
+                    <path
+                      d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A2.5 2.5 0 0 1 3 14.5v-8Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M7.5 9h9M7.5 12.5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <p className="text-[15px] font-extrabold text-muted">Выберите чат</p>
+                <p className="text-[12px] text-muted/70">
+                  Начни переписку — выбери чат из списка слева
+                </p>
+              </div>
+            )
           ) : null}
         </div>
       </div>
