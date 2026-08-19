@@ -32,7 +32,7 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage'
-import type { CustomCategory, CustomTeam, ModerationStatus, User, UserRole } from './store'
+import type { ChatMessage, CustomCategory, CustomTeam, ModerationStatus, User, UserRole } from './store'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
@@ -285,4 +285,70 @@ export function fbErrorMessage(error: unknown): string {
   if (message.includes('too-many-requests')) return 'Слишком много попыток. Попробуй позже'
   if (message.includes('captcha')) return 'Не удалось пройти проверку. Попробуй ещё раз'
   return 'Что-то пошло не так. Попробуй ещё раз'
+}
+
+type ChatMeta = {
+  kind: 'sphere' | 'team' | 'dm'
+  participants?: string[]
+  updatedAt?: string
+}
+
+export function ensureChatFb(chatId: string, meta: ChatMeta): void {
+  if (!db) return
+  const ref = doc(db, 'chats', chatId)
+  void setDoc(
+    ref,
+    {
+      kind: meta.kind,
+      updatedAt: new Date().toISOString(),
+      ...(meta.participants ? { participants: meta.participants } : {}),
+    },
+    { merge: true },
+  )
+}
+
+export function sendMessageFb(chatId: string, message: ChatMessage): void {
+  if (!db) return
+  void setDoc(doc(db, 'chats', chatId, 'messages', message.id), {
+    authorId: message.userId ?? '',
+    authorName: message.authorName,
+    text: message.text,
+    createdAt: message.createdAt,
+  })
+}
+
+export function subscribeChatMessagesFb(
+  chatId: string,
+  callback: (messages: ChatMessage[]) => void,
+): () => void {
+  if (!db) return () => {}
+  const q = query(
+    collection(db, 'chats', chatId, 'messages'),
+    orderBy('createdAt', 'asc'),
+  )
+  return onSnapshot(q, (snapshot) => {
+    callback(
+      snapshot.docs.map((docSnap) => {
+        const data = docSnap.data()
+        return {
+          id: docSnap.id,
+          userId: data.authorId ?? '',
+          authorName: data.authorName ?? 'Пользователь',
+          text: data.text ?? '',
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        }
+      }),
+    )
+  })
+}
+
+export function subscribeParticipantChatsFb(
+  userId: string,
+  callback: (chatIds: string[]) => void,
+): () => void {
+  if (!db) return () => {}
+  const q = query(collection(db, 'chats'), where('participants', 'array-contains', userId))
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((docSnap) => docSnap.id))
+  })
 }

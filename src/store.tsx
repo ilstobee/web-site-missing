@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Category } from './data'
 import { asset, categories as baseCategories } from './data'
@@ -24,6 +24,10 @@ import {
   resendVerificationFb,
   reloadUserFb,
   fbErrorMessage,
+  ensureChatFb,
+  sendMessageFb,
+  subscribeChatMessagesFb,
+  subscribeParticipantChatsFb,
 } from './firebase'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
@@ -80,6 +84,7 @@ export type Notification = {
   text: string
   read: boolean
   createdAt: string
+  chatId?: string
 }
 
 export type CustomCategory = {
@@ -146,6 +151,7 @@ type DB = {
   pendingCategories: CustomCategory[]
   pendingTeams: CustomTeam[]
   chats: Record<string, ChatMessage[]>
+  chatRead: Record<string, string>
   visits: Visit[]
 }
 
@@ -216,6 +222,9 @@ type AppContextValue = {
   addChatMessage(chatId: string, text: string): void
   recordVisit(sphereId: string): void
   markAllNotificationsRead(): void
+  markChatRead(chatId: string): void
+  setActiveChatId(chatId: string | null): void
+  chatRead: Record<string, string>
   sphereStats(sphereId: string): { rating: number; reviews: number; activity: number }
   sphereName(sphereId: string): string
 }
@@ -234,6 +243,7 @@ const emptyDB: DB = {
   pendingCategories: [],
   pendingTeams: [],
   chats: {},
+  chatRead: {},
   visits: [],
 }
 
@@ -430,6 +440,123 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const custom = db.customCategories.map(toCategory)
     return [...baseCategories, ...custom]
   }, [db.customCategories])
+
+  const userRef = useRef<User | null>(user)
+  userRef.current = user
+  const dbRef = useRef<DB>(db)
+  dbRef.current = db
+  const allCategoriesRef = useRef<Category[]>(allCategories)
+  allCategoriesRef.current = allCategories
+  const activeChatRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubs = new Map<string, () => void>()
+    const lastSeen = new Map<string, string>()
+
+    const chatTitle = (chatId: string): string => {
+      if (chatId.startsWith('dm:')) {
+        const parts = chatId.slice(3).split(':')
+        const me = userRef.current?.id
+        const peer = parts.find((candidate) => candidate !== me) ?? parts[0]
+        const peerUser = dbRef.current.users.find((candidate) => candidate.id === peer)
+        return peerUser ? `${peerUser.name} ${peerUser.surname}`.trim() : 'Личный чат'
+      }
+      if (chatId.startsWith('team:')) {
+        const team = dbRef.current.customTeams.find((candidate) => `team:${candidate.id}` === chatId)
+        return team ? team.title : 'Чат команды'
+      }
+      return allCategoriesRef.current.find((candidate) => candidate.id === chatId)?.name ?? 'Чат'
+    }
+
+    const handleSnapshot = (chatId: string, messages: ChatMessage[]) => {
+      if (!alive) return
+      const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      setDb((d) => {
+        const prev = d.chats[chatId] ?? []
+        const byId = new Map<string, ChatMessage>()
+        prev.forEach((candidate) => byId.set(candidate.id, candidate))
+        sorted.forEach((candidate) => byId.set(candidate.id, candidate))
+        return {
+          ...d,
+          chats: {
+            ...d.chats,
+            [chatId]: Array.from(byId.values()).sort((a, b) =>
+              a.createdAt.localeCompare(b.createdAt),
+            ),
+          },
+        }
+      })
+      const last = sorted[sorted.length - 1]
+      const known = lastSeen.get(chatId)
+      lastSeen.set(chatId, last ? last.id : '')
+      if (!last || !known || last.id === known) return
+      if (last.userId === userRef.current?.id) return
+      const incoming = `💬 ${last.authorName}: ${last.text}`
+      const inActive = activeChatRef.current === chatId
+      setDb((d) => ({
+        ...d,
+        notifications: [
+          {
+            id: uid(),
+            userId: userRef.current?.id ?? '',
+            text: incoming,
+            read: inActive,
+            createdAt: new Date().toISOString(),
+            chatId,
+          },
+          ...d.notifications,
+        ],
+        ...(inActive ? { chatRead: { ...d.chatRead, [chatId]: last.createdAt } } : {}),
+      }))
+      if (!inActive && typeof window !== 'undefined' && 'Notification' in window) {
+        try {
+          if (
+            Notification.permission === 'granted' &&
+            document.hidden &&
+            typeof Notification !== 'undefined'
+          ) {
+            new Notification(chatTitle(chatId), { body: `${last.authorName}: ${last.text}` })
+          }
+        } catch {
+          // ignore notification errors
+        }
+      }
+    }
+
+    const subscribe = (chatId: string) => {
+      if (unsubs.has(chatId)) return
+      unsubs.set(
+        chatId,
+        subscribeChatMessagesFb(chatId, (messages) => handleSnapshot(chatId, messages)),
+      )
+    }
+
+    const refresh = () => {
+      if (!alive) return
+      const ids = new Set<string>()
+      allCategoriesRef.current.forEach((candidate) => ids.add(candidate.id))
+      dbRef.current.customTeams.forEach((candidate) => ids.add(`team:${candidate.id}`))
+      Object.keys(dbRef.current.chats).forEach((chatId) => ids.add(chatId))
+      ids.forEach(subscribe)
+    }
+
+    const unsubscribeParticipant = subscribeParticipantChatsFb(userRef.current?.id ?? '', (chatIds) => {
+      if (!alive) return
+      chatIds.forEach(subscribe)
+    })
+
+    refresh()
+    const interval = window.setInterval(refresh, 10000)
+
+    return () => {
+      alive = false
+      window.clearInterval(interval)
+      unsubscribeParticipant()
+      unsubs.forEach((unsubscribe) => unsubscribe())
+    }
+  }, [])
 
   const value = useMemo<AppContextValue>(() => {
     const register = async (input: RegisterInput): Promise<string | null> => {
@@ -848,6 +975,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...d,
         chats: { ...d.chats, [chatId]: [...(d.chats[chatId] ?? []), message] },
       }))
+      if (firebaseEnabled && user) {
+        const kind = chatId.startsWith('dm:')
+          ? 'dm'
+          : chatId.startsWith('team:')
+            ? 'team'
+            : 'sphere'
+        if (kind === 'dm') {
+          ensureChatFb(chatId, { kind, participants: chatId.slice(3).split(':') })
+        } else {
+          ensureChatFb(chatId, { kind })
+        }
+        sendMessageFb(chatId, message)
+      }
     }
 
     const recordVisit = (sphereId: string) => {
@@ -871,6 +1011,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           notification.userId === user.id ? { ...notification, read: true } : notification,
         ),
       }))
+    }
+
+    const markChatRead = (chatId: string) => {
+      if (!user) return
+      mutate((d) => ({ ...d, chatRead: { ...d.chatRead, [chatId]: new Date().toISOString() } }))
+    }
+
+    const setActiveChatId = (chatId: string | null) => {
+      activeChatRef.current = chatId
     }
 
     const sphereStats = (sphereId: string) => {
@@ -919,6 +1068,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addChatMessage,
       recordVisit,
       markAllNotificationsRead,
+      markChatRead,
+      setActiveChatId,
+      chatRead: db.chatRead,
       sphereStats,
       sphereName,
     }

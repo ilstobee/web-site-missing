@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { asset } from '../data'
 import { useApp, dmChatId } from '../store'
+import type { ChatMessage } from '../store'
 
 type Props = {
   open: boolean
@@ -29,12 +30,19 @@ function initialsOf(name: string): string {
 }
 
 export function ChatModal({ open, onClose, initialChatId }: Props) {
-  const { db, user, allCategories, addChatMessage } = useApp()
+  const { db, user, allCategories, addChatMessage, chatRead, markChatRead, setActiveChatId } =
+    useApp()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [text, setText] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  )
+  const [notifGranted, setNotifGranted] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted',
   )
 
   useEffect(() => {
@@ -55,8 +63,18 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
   }, [open, initialChatId, allCategories])
 
   useEffect(() => {
-    if (!open) setSelectedId(null)
-  }, [open])
+    if (!open) {
+      setSelectedId(null)
+      setActiveChatId(null)
+    }
+  }, [open, setActiveChatId])
+
+  useEffect(() => {
+    if (open && selectedId) {
+      setActiveChatId(selectedId)
+      markChatRead(selectedId)
+    }
+  }, [open, selectedId, setActiveChatId, markChatRead])
 
   const resolvePeerName = (peerId: string): string => {
     const peer = db.users.find((candidate) => candidate.id === peerId)
@@ -171,6 +189,26 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
   const messages = active ? (db.chats[active.id] ?? []) : []
   const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
+  const lastMessageOf = (id: string): ChatMessage | null => {
+    const msgs = db.chats[id] ?? []
+    if (!msgs.length) return null
+    return [...msgs].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[msgs.length - 1]
+  }
+
+  const unreadCount = (id: string): number => {
+    if (!user) return 0
+    const lastRead = chatRead[id] ?? ''
+    return (db.chats[id] ?? []).filter(
+      (message) => message.userId && message.userId !== user.id && message.createdAt > lastRead,
+    ).length
+  }
+
+  const requestNotifs = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const permission = await Notification.requestPermission()
+    setNotifGranted(permission === 'granted')
+  }
+
   useEffect(() => {
     if (open && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
@@ -210,6 +248,15 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
             <p className="text-lg font-extrabold text-ink">Чаты</p>
             <p className="text-[12px] text-muted">Сферы · команды · личные чаты</p>
           </div>
+          {!notifGranted && typeof window !== 'undefined' && 'Notification' in window ? (
+            <button
+              type="button"
+              onClick={requestNotifs}
+              className="shrink-0 rounded-full border border-brand/30 px-3 py-1.5 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+            >
+              🔔 Включить уведомления
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onClose}
@@ -232,7 +279,8 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
                     <p className="px-4 pb-2 text-[11px] leading-snug text-muted/80">{folder.empty}</p>
                   ) : (
                     folder.refs.map((ref) => {
-                      const count = db.chats[ref.id]?.length ?? 0
+                      const preview = lastMessageOf(ref.id)
+                      const unread = unreadCount(ref.id)
                       const isActive = ref.id === selectedId
                       return (
                         <button
@@ -254,12 +302,12 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] font-bold text-ink">{ref.name}</p>
                             <p className="truncate text-[11px] text-muted">
-                              {count ? `${count} сообщ.` : ref.subtitle}
+                              {preview ? `${preview.authorName}: ${preview.text}` : ref.subtitle}
                             </p>
                           </div>
-                          {count > 0 ? (
+                          {unread > 0 ? (
                             <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-white">
-                              {count}
+                              {unread}
                             </span>
                           ) : null}
                         </button>

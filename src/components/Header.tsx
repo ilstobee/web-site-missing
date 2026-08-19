@@ -6,16 +6,21 @@ type Props = {
   onOpenAuth(): void
   onOpenLK(): void
   onOpenApplications(): void
-  onOpenChat(): void
+  onOpenChat(chatId?: string): void
 }
 
 export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }: Props) {
   const { user, db, logout, markAllNotificationsRead } = useApp()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
-  const handleNotificationClick = () => {
+  const handleNotificationClick = (chatId?: string) => {
     setNotificationsOpen(false)
-    onOpenApplications()
+    markAllNotificationsRead()
+    if (chatId) {
+      onOpenChat(chatId)
+    } else {
+      onOpenApplications()
+    }
   }
 
   const myNotifications = user
@@ -37,13 +42,13 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
           <a href="#spheres" className="hover:text-brand">Сферы</a>
           <a href="#teams" className="hover:text-brand">Команды</a>
           <a href="#for-you" className="hover:text-brand">Для тебя</a>
-          <button type="button" onClick={onOpenChat} className="hover:text-brand">Чаты</button>
+          <button type="button" onClick={() => onOpenChat()} className="hover:text-brand">Чаты</button>
         </nav>
 
         <div className="flex items-center gap-3 sm:gap-4">
           <button
             type="button"
-            onClick={onOpenChat}
+            onClick={() => onOpenChat()}
             className="grid h-10 w-10 place-items-center text-ink"
             aria-label="Чаты"
           >
@@ -105,7 +110,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
                       <button
                         key={notification.id}
                         type="button"
-                        onClick={handleNotificationClick}
+                        onClick={() => handleNotificationClick(notification.chatId)}
                         className={`block w-full border-b border-cream px-4 py-3 text-left transition hover:bg-cream ${notification.read ? 'bg-white' : 'bg-brand-soft'}`}
                       >
                         <p className="text-[13px] leading-snug text-ink">{notification.text}</p>
