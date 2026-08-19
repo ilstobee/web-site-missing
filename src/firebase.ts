@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  sendPasswordResetEmail,
+  reload,
   updatePassword,
   RecaptchaVerifier,
   signInWithPhoneNumber,
@@ -94,6 +96,23 @@ export async function signInWithEmail(email: string, password: string): Promise<
 export async function signOutFb(): Promise<void> {
   if (!auth) return
   await signOut(auth)
+}
+
+export async function sendPasswordResetFb(email: string): Promise<void> {
+  if (!auth) throw new Error('Firebase не настроен')
+  await sendPasswordResetEmail(auth, email)
+}
+
+export async function resendVerificationFb(): Promise<void> {
+  if (!auth?.currentUser) throw new Error('Сначала войди в аккаунт')
+  await sendEmailVerification(auth.currentUser)
+}
+
+export async function reloadUserFb(): Promise<boolean> {
+  const user = auth?.currentUser
+  if (!user) return false
+  await reload(user)
+  return user.emailVerified
 }
 
 export function subscribeAuthFb(callback: (user: FirebaseUser | null) => void): () => void {

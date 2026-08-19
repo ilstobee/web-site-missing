@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp } from '../store'
+import { useApp, isValidEmail, isValidPhone } from '../store'
 import type { UserRole } from '../store'
 import {
   firebaseEnabled,
@@ -15,11 +15,18 @@ type Props = {
   onSuccess(): void
 }
 
-type Mode = 'login' | 'register'
+type Mode = 'login' | 'register' | 'forgot' | 'verify'
 type Contact = 'email' | 'phone'
 
 export function AuthModal({ open, onClose, onSuccess }: Props) {
-  const { register, login, markFbSession } = useApp()
+  const {
+    register,
+    login,
+    markFbSession,
+    sendPasswordReset,
+    resendVerification,
+    refreshVerification,
+  } = useApp()
 
   const [mode, setMode] = useState<Mode>('login')
   const [contact, setContact] = useState<Contact>('email')
@@ -41,6 +48,8 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [role, setRole] = useState<UserRole>('participant')
 
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
+  const [verifyEmail, setVerifyEmail] = useState('')
 
   if (!open) return null
 
@@ -57,11 +66,24 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       return
     }
     setError(null)
+    if (firebaseEnabled && contact === 'email') {
+      const verified = await refreshVerification()
+      if (!verified) {
+        setVerifyEmail(loginValue.trim())
+        reset()
+        setMode('verify')
+        return
+      }
+    }
     reset()
     onClose()
   }
 
   const handleRegister = async () => {
+    if (firebaseEnabled && !isValidEmail(loginValue)) {
+      setError('Введи корректный email (например: name@mail.ru)')
+      return
+    }
     const err = await register({
       name,
       surname,
@@ -78,12 +100,79 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       return
     }
     setError(null)
+    if (firebaseEnabled && contact === 'email') {
+      const email = loginValue.trim()
+      reset()
+      setMode('verify')
+      setVerifyEmail(email)
+      setInfo('Письмо для подтверждения отправлено на почту. Открой его и перейди по ссылке.')
+      return
+    }
     reset()
     onClose()
     onSuccess()
   }
 
+  const handleForgot = async () => {
+    if (!isValidEmail(loginValue)) {
+      setError('Введи корректный email (например: name@mail.ru)')
+      return
+    }
+    setError(null)
+    setInfo(null)
+    setSending(true)
+    try {
+      const err = await sendPasswordReset(loginValue)
+      if (err) {
+        setError(err)
+      } else {
+        setInfo('Письмо со ссылкой для сброса пароля отправлено. Проверь почту.')
+      }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const checkVerified = async () => {
+    setError(null)
+    setInfo(null)
+    setSending(true)
+    try {
+      const verified = await refreshVerification()
+      if (verified) {
+        reset()
+        setMode('login')
+        onClose()
+        onSuccess()
+      } else {
+        setError('Почта ещё не подтверждена. Проверь письмо и перейди по ссылке из него.')
+      }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const resend = async () => {
+    setError(null)
+    setInfo(null)
+    setSending(true)
+    try {
+      const err = await resendVerification()
+      if (err) {
+        setError(err)
+      } else {
+        setInfo('Письмо отправлено ещё раз. Проверь почту.')
+      }
+    } finally {
+      setSending(false)
+    }
+  }
+
   const sendCode = async () => {
+    if (!isValidPhone(phoneValue)) {
+      setError('Введи корректный номер телефона (например: +7 900 000-00-00)')
+      return
+    }
     setError(null)
     setSending(true)
     try {
@@ -149,6 +238,8 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setHobbies([])
     setRole('participant')
     setError(null)
+    setInfo(null)
+    setVerifyEmail('')
   }
 
   const inputClass =
@@ -302,6 +393,74 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     </div>
   )
 
+  const verifyForm = (
+    <div className="space-y-3">
+      <div className="rounded-xl bg-brand-soft px-4 py-3 text-[13px] leading-relaxed text-brand">
+        <p className="font-bold">Подтверждение почты</p>
+        <p className="mt-1">
+          Мы отправили письмо на <b>{verifyEmail || loginValue}</b>. Открой его и перейди по ссылке,
+          затем нажми кнопку ниже.
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={sending}
+        onClick={checkVerified}
+        className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+      >
+        {sending ? 'Проверяем…' : 'Я подтвердил(а) — войти'}
+      </button>
+      <button
+        type="button"
+        disabled={sending}
+        onClick={resend}
+        className="w-full rounded-full border border-ink/10 py-3 text-sm font-semibold text-brand transition hover:bg-cream disabled:opacity-60"
+      >
+        {sending ? 'Отправляем…' : 'Отправить письмо ещё раз'}
+      </button>
+      <p className="text-center text-[11px] text-muted">
+        Письмо может оказаться в папке «Спам».
+      </p>
+    </div>
+  )
+
+  const forgotForm = (
+    <div className="space-y-3">
+      <p className="text-[13px] leading-relaxed text-muted">
+        Укажи email, указанный при регистрации. Мы отправим письмо со ссылкой для сброса пароля.
+      </p>
+      <input
+        className={inputClass}
+        type="email"
+        placeholder="Email"
+        value={loginValue}
+        onChange={(event) => setLoginValue(event.target.value)}
+      />
+      <button
+        type="button"
+        disabled={sending}
+        onClick={handleForgot}
+        className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+      >
+        {sending ? 'Отправляем…' : 'Отправить ссылку для сброса'}
+      </button>
+      <p className="text-center text-[12px] text-muted">
+        Вспомнил пароль?{' '}
+        <button
+          type="button"
+          className="font-semibold text-brand hover:text-brand-dark"
+          onClick={() => {
+            setMode('login')
+            setError(null)
+            setInfo(null)
+          }}
+        >
+          Назад ко входу
+        </button>
+      </p>
+    </div>
+  )
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4"
@@ -326,27 +485,35 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         </div>
 
         <div className="p-6">
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-cream p-1">
-            {(['login', 'register'] as Mode[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setMode(item)
-                  setError(null)
-                }}
-                className={`rounded-full py-2 text-sm font-semibold transition ${
-                  mode === item ? 'bg-white text-brand shadow-sm' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {item === 'login' ? 'Вход' : 'Регистрация'}
-              </button>
-            ))}
-          </div>
+          {mode === 'login' || mode === 'register' ? (
+            <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-cream p-1">
+              {(['login', 'register'] as Mode[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => {
+                    setMode(item)
+                    setError(null)
+                    setInfo(null)
+                  }}
+                  className={`rounded-full py-2 text-sm font-semibold transition ${
+                    mode === item ? 'bg-white text-brand shadow-sm' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {item === 'login' ? 'Вход' : 'Регистрация'}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {error ? (
             <p className="mb-4 rounded-xl bg-brand-soft px-4 py-2.5 text-[13px] font-medium text-brand">
               {error}
+            </p>
+          ) : null}
+          {info ? (
+            <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-2.5 text-[13px] font-medium text-emerald-700">
+              {info}
             </p>
           ) : null}
 
@@ -357,7 +524,11 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
             </div>
           ) : null}
 
-          {mode === 'login' ? (
+          {mode === 'verify' ? (
+            verifyForm
+          ) : mode === 'forgot' ? (
+            forgotForm
+          ) : mode === 'login' ? (
             firebaseEnabled && contact === 'phone' ? (
               phoneForm(false)
             ) : (
@@ -370,7 +541,8 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               >
                 <input
                   className={inputClass}
-                  placeholder={firebaseEnabled ? 'Email или логин' : 'Логин'}
+                  type="email"
+                  placeholder={firebaseEnabled ? 'Email' : 'Логин'}
                   value={loginValue}
                   onChange={(event) => setLoginValue(event.target.value)}
                 />
@@ -381,6 +553,17 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
+                <button
+                  type="button"
+                  className="text-[12px] font-semibold text-brand hover:text-brand-dark"
+                  onClick={() => {
+                    setMode('forgot')
+                    setError(null)
+                    setInfo(null)
+                  }}
+                >
+                  Забыли пароль?
+                </button>
                 <button
                   type="submit"
                   className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark"
@@ -395,6 +578,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                     onClick={() => {
                       setMode('register')
                       setError(null)
+                      setInfo(null)
                     }}
                   >
                     Зарегистрируйся
@@ -474,6 +658,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               </div>
               <input
                 className={inputClass}
+                type="email"
                 placeholder={firebaseEnabled ? 'Email' : 'Логин'}
                 value={loginValue}
                 onChange={(event) => setLoginValue(event.target.value)}

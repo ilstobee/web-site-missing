@@ -20,6 +20,9 @@ import {
   setCategoryStatusFb,
   getUserProfileFb,
   saveUserProfileFb,
+  sendPasswordResetFb,
+  resendVerificationFb,
+  reloadUserFb,
   fbErrorMessage,
 } from './firebase'
 
@@ -40,6 +43,7 @@ export type User = {
   hobbies: string[]
   role: UserRole
   isAdmin?: boolean
+  emailVerified?: boolean
   createdAt: string
 }
 
@@ -185,10 +189,14 @@ type AppContextValue = {
   db: DB
   user: User | null
   allCategories: Category[]
+  emailVerified: boolean
   register(input: RegisterInput): Promise<string | null>
   login(login: string, password: string): Promise<string | null>
   logout(): void
   markFbSession(uid: string, profile: Partial<User>): void
+  sendPasswordReset(email: string): Promise<string | null>
+  resendVerification(): Promise<string | null>
+  refreshVerification(): Promise<boolean>
   updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
   setUserRole(role: UserRole): void
   changePassword(current: string, next: string): string | null
@@ -276,6 +284,15 @@ export function fmtDate(iso: string): string {
   })
 }
 
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())
+}
+
+export function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 15
+}
+
 const CUSTOM_TINT = 'bg-[#fde4df]'
 
 function toCategory(custom: CustomCategory): Category {
@@ -299,6 +316,7 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<DB>(loadDB)
+  const [emailVerified, setEmailVerified] = useState(true)
 
   useEffect(() => {
     try {
@@ -324,6 +342,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const profile = await getUserProfileFb(uid)
       const isAdmin =
         profile.isAdmin === true || import.meta.env.VITE_FIREBASE_ADMIN_UID === uid
+      setEmailVerified(fbUser.emailVerified === true)
       setDb((d) => {
         const existing = d.users.find((candidate) => candidate.id === fbId)
         const record: User = {
@@ -337,6 +356,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           hobbies: profile.hobbies ?? [],
           role: profile.role ?? 'participant',
           isAdmin,
+          emailVerified: fbUser.emailVerified,
           createdAt: profile.createdAt ?? new Date().toISOString(),
         }
         const users = existing
@@ -416,7 +436,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!input.telegram.trim()) return 'Укажи свой Telegram'
 
       if (firebaseEnabled) {
-        const email = input.email?.trim() || `${login}@missing.app`
+        const rawEmail = input.email?.trim() || ''
+        if (!isValidEmail(rawEmail)) return 'Введи корректный email'
+        const email = rawEmail
         try {
           const fbUser = await signUpWithEmail(email, input.password)
           const profile = {
@@ -478,6 +500,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         void signOutFb()
       }
       mutate((d) => ({ ...d, sessionUserId: null }))
+    }
+
+    const sendPasswordReset = async (email: string): Promise<string | null> => {
+      const trimmed = email.trim()
+      if (!isValidEmail(trimmed)) return 'Введи корректный email'
+      try {
+        await sendPasswordResetFb(trimmed)
+        return null
+      } catch (error) {
+        return fbErrorMessage(error)
+      }
+    }
+
+    const resendVerification = async (): Promise<string | null> => {
+      try {
+        await resendVerificationFb()
+        return null
+      } catch (error) {
+        return fbErrorMessage(error)
+      }
+    }
+
+    const refreshVerification = async (): Promise<boolean> => {
+      if (!firebaseEnabled) return true
+      try {
+        const verified = await reloadUserFb()
+        setEmailVerified(verified)
+        return verified
+      } catch {
+        return false
+      }
     }
 
     const markFbSession = (uid: string, profile: Partial<User>) => {
@@ -831,10 +884,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       db,
       user,
       allCategories,
+      emailVerified,
       register,
       login,
       logout,
       markFbSession,
+      sendPasswordReset,
+      resendVerification,
+      refreshVerification,
       updateProfile,
       setUserRole,
       changePassword,
@@ -856,7 +913,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sphereStats,
       sphereName,
     }
-  }, [db, user, allCategories])
+  }, [db, user, allCategories, emailVerified])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

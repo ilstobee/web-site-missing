@@ -11,9 +11,10 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
 import { ProfileModal } from './components/ProfileModal'
+import { VerifyBanner } from './components/VerifyBanner'
 
 export default function App() {
-  const { recordVisit, user } = useApp()
+  const { recordVisit, user, emailVerified } = useApp()
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileInitialTab, setProfileInitialTab] = useState<'profile' | 'applications'>('profile')
@@ -52,6 +53,7 @@ export default function App() {
     <div id="top" className="min-h-svh wave-top">
       <div className="wave-strip" aria-hidden />
       <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={() => {}} />
+      {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
         <Hero />
         <CategoryGrid
