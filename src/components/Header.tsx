@@ -87,7 +87,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
             </button>
 
             {notificationsOpen ? (
-              <div className="absolute right-0 top-12 w-[320px] overflow-hidden rounded-2xl bg-white shadow-[0_14px_40px_rgba(80,40,40,0.18)] ring-1 ring-ink/5">
+              <div className="absolute right-0 top-12 z-10 w-[320px] overflow-hidden rounded-2xl bg-white shadow-[0_14px_40px_rgba(80,40,40,0.18)] ring-1 ring-ink/5">
                 <div className="flex items-center justify-between gap-3 border-b border-cream px-4 py-3">
                   <p className="text-sm font-extrabold text-ink">Уведомления</p>
                   {unread > 0 ? (
