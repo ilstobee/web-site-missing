@@ -34,6 +34,8 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     useApp()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [text, setText] = useState('')
+  const [folder, setFolder] = useState<'all' | 'sphere' | 'team' | 'dm'>('all')
+  const [search, setSearch] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
@@ -171,24 +173,6 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     [allCategories],
   )
 
-  const folders = [
-    { label: 'Сферы', refs: sphereRefs, empty: 'Чат каждой сферы — здесь.' },
-    {
-      label: 'Команды',
-      refs: teamRefs,
-      empty: 'Ты пока не участвуешь в командах. Открой «Чат команды» на её карточке.',
-    },
-    {
-      label: 'Личные чаты',
-      refs: dmRefs,
-      empty: 'Личные переписки с создателями и участниками появятся после заявок.',
-    },
-  ]
-
-  const active = selectedId ? resolveChat(selectedId) : null
-  const messages = active ? (db.chats[active.id] ?? []) : []
-  const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-
   const lastMessageOf = (id: string): ChatMessage | null => {
     const msgs = db.chats[id] ?? []
     if (!msgs.length) return null
@@ -202,6 +186,46 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
       (message) => message.userId && message.userId !== user.id && message.createdAt > lastRead,
     ).length
   }
+
+  const folderTabs = [
+  {
+    id: 'all' as const,
+    label: 'Все',
+    refs: [...sphereRefs, ...teamRefs, ...dmRefs],
+    empty: 'Чатов пока нет. Открой чат команды или сферы, чтобы начать переписку.',
+  },
+  { id: 'sphere' as const, label: 'Сферы', refs: sphereRefs, empty: 'Чат каждой сферы — здесь.' },
+  {
+    id: 'team' as const,
+    label: 'Команды',
+    refs: teamRefs,
+    empty: 'Ты пока не участвуешь в командах. Открой «Чат команды» на её карточке.',
+  },
+  {
+    id: 'dm' as const,
+    label: 'Личные',
+    refs: dmRefs,
+    empty: 'Личные переписки с создателями и участниками появятся после заявок.',
+  },
+]
+
+const activeFolder = folderTabs.find((tab) => tab.id === folder) ?? folderTabs[0]
+const query = search.trim().toLowerCase()
+const visibleRefs = activeFolder.refs.filter((ref) => {
+  if (!query) return true
+  const preview = lastMessageOf(ref.id)
+  return (
+    ref.name.toLowerCase().includes(query) ||
+    (preview ? preview.text.toLowerCase().includes(query) : false)
+  )
+})
+
+const active = selectedId ? resolveChat(selectedId) : null
+  const messages = active ? (db.chats[active.id] ?? []) : []
+  const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+  const folderUnread = (refs: ChatRef[]): number =>
+  refs.reduce((sum, ref) => sum + unreadCount(ref.id), 0)
 
   const requestNotifs = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
@@ -269,53 +293,86 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
 
         <div className="flex min-h-0 flex-1">
           {showList ? (
-            <aside className="w-full shrink-0 overflow-y-auto border-r border-cream bg-blush/40 md:w-64">
-              {folders.map((folder) => (
-                <div key={folder.label}>
-                  <p className="px-4 pb-1 pt-4 text-[10px] font-extrabold uppercase tracking-wider text-muted">
-                    {folder.label}
-                  </p>
-                  {folder.refs.length === 0 ? (
-                    <p className="px-4 pb-2 text-[11px] leading-snug text-muted/80">{folder.empty}</p>
-                  ) : (
-                    folder.refs.map((ref) => {
-                      const preview = lastMessageOf(ref.id)
-                      const unread = unreadCount(ref.id)
-                      const isActive = ref.id === selectedId
-                      return (
-                        <button
-                          key={ref.id}
-                          type="button"
-                          onClick={() => setSelectedId(ref.id)}
-                          aria-pressed={isActive}
-                          className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
-                            isActive ? 'bg-white' : 'hover:bg-white/60'
+            <aside className="flex w-full shrink-0 flex-col border-r border-cream bg-blush/40 md:w-64">
+              <div className="p-2 pb-1">
+                <input
+                  value={search}
+                  placeholder="Поиск чатов…"
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="w-full rounded-full border border-ink/10 bg-white px-3.5 py-2 text-[13px] text-ink outline-none transition focus:border-brand"
+                />
+              </div>
+              <div className="flex gap-1 overflow-x-auto px-2 py-1.5">
+                {folderTabs.map((tab) => {
+                  const unread = folderUnread(tab.refs)
+                  const isActive = tab.id === folder
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setFolder(tab.id)}
+                      aria-pressed={isActive}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
+                        isActive ? 'bg-brand text-white' : 'text-muted hover:bg-white/70'
+                      }`}
+                    >
+                      {tab.label}
+                      {unread > 0 ? (
+                        <span
+                          className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold ${
+                            isActive ? 'bg-white text-brand' : 'bg-brand text-white'
                           }`}
                         >
-                          {ref.icon ? (
-                            <img src={ref.icon} alt="" className="h-8 w-8 shrink-0 rounded-xl object-cover" />
-                          ) : (
-                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
-                              {initialsOf(ref.name)}
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-bold text-ink">{ref.name}</p>
-                            <p className="truncate text-[11px] text-muted">
-                              {preview ? `${preview.authorName}: ${preview.text}` : ref.subtitle}
-                            </p>
-                          </div>
-                          {unread > 0 ? (
-                            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-white">
-                              {unread}
-                            </span>
-                          ) : null}
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              ))}
+                          {unread}
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {visibleRefs.length === 0 ? (
+                  <p className="px-4 py-6 text-[11px] leading-snug text-muted/80">
+                    {query ? 'Ничего не найдено.' : activeFolder.empty}
+                  </p>
+                ) : (
+                  visibleRefs.map((ref) => {
+                    const preview = lastMessageOf(ref.id)
+                    const unread = unreadCount(ref.id)
+                    const isActive = ref.id === selectedId
+                    return (
+                      <button
+                        key={ref.id}
+                        type="button"
+                        onClick={() => setSelectedId(ref.id)}
+                        aria-pressed={isActive}
+                        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
+                          isActive ? 'bg-white' : 'hover:bg-white/60'
+                        }`}
+                      >
+                        {ref.icon ? (
+                          <img src={ref.icon} alt="" className="h-8 w-8 shrink-0 rounded-xl object-cover" />
+                        ) : (
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
+                            {initialsOf(ref.name)}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-bold text-ink">{ref.name}</p>
+                          <p className="truncate text-[11px] text-muted">
+                            {preview ? `${preview.authorName}: ${preview.text}` : ref.subtitle}
+                          </p>
+                        </div>
+                        {unread > 0 ? (
+                          <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-white">
+                            {unread}
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
             </aside>
           ) : null}
 
