@@ -44,9 +44,12 @@ export default function App() {
     recordVisit(id)
   }
 
+  if (loading) {
+    return <LoadingScreen onDone={() => setLoading(false)} />
+  }
+
   return (
     <div id="top" className="min-h-svh wave-top">
-      {loading && <LoadingScreen onDone={() => setLoading(false)} />}
       <div className="wave-strip" aria-hidden />
       <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={() => {}} />
       <main>
