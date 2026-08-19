@@ -73,15 +73,20 @@ function detectCountry(digits: string): { country: Country; national: string } {
     }
   }
   if (best) return { country: best, national: digits.slice(best.prefix.length) }
+  if (digits.startsWith('89') || (digits.length === 11 && digits.startsWith('8'))) {
+    return { country: COUNTRIES[0], national: digits.slice(1) }
+  }
   return { country: COUNTRIES[0], national: digits }
 }
 
 function formatNational(digits: string): string {
   if (!digits) return ''
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`
-  }
-  return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim()
+  const d = digits
+  if (d.length >= 10) return `${d.slice(0, 3)} ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8, 10)}`
+  if (d.length === 9) return `${d.slice(0, 2)} ${d.slice(2, 5)}-${d.slice(5, 7)}-${d.slice(7)}`
+  if (d.length === 8) return `${d.slice(0, 2)} ${d.slice(2, 5)}-${d.slice(5, 7)}-${d.slice(7)}`
+  if (d.length === 7) return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`
+  return d
 }
 
 export function AuthModal({ open, onClose, onSuccess }: Props) {
@@ -396,7 +401,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               <input
                 className={inputClass}
                 inputMode="tel"
-                placeholder="900 000-00-00"
+                placeholder="900 123-45-67"
                 value={formatNational(phoneDigits)}
                 onChange={(event) => handlePhoneChange(event.target.value)}
               />
