@@ -1,10 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
-import { useApp } from '../store'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { asset } from '../data'
+import { useApp, dmChatId } from '../store'
 
 type Props = {
   open: boolean
   onClose(): void
   initialChatId?: string
+}
+
+type ChatRef = {
+  id: string
+  kind: 'sphere' | 'team' | 'dm'
+  name: string
+  icon?: string
+  subtitle: string
+  creatorId?: string
+}
+
+const FALLBACK_IMAGE = asset('images/teams/team-startup.png')
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
 }
 
 export function ChatModal({ open, onClose, initialChatId }: Props) {
@@ -25,13 +46,129 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
 
   useEffect(() => {
     if (open) {
-      setSelectedId((current) => current ?? initialChatId ?? allCategories[0]?.id ?? null)
+      setSelectedId((current) => {
+        if (initialChatId) return initialChatId
+        return current ?? allCategories[0]?.id ?? null
+      })
       setText('')
     }
   }, [open, initialChatId, allCategories])
 
-  const active = allCategories.find((category) => category.id === selectedId)
-  const messages = selectedId ? (db.chats[selectedId] ?? []) : []
+  useEffect(() => {
+    if (!open) setSelectedId(null)
+  }, [open])
+
+  const resolvePeerName = (peerId: string): string => {
+    const peer = db.users.find((candidate) => candidate.id === peerId)
+    if (peer) return `${peer.name} ${peer.surname}`.trim()
+    const team = db.customTeams.find((candidate) => candidate.creatorId === peerId)
+    if (team) return team.creatorName
+    const application = db.applications.find((candidate) => candidate.userId === peerId)
+    if (application) return application.userName
+    return 'Пользователь'
+  }
+
+  const resolveChat = (id: string): ChatRef | null => {
+    if (id.startsWith('team:')) {
+      const team = db.customTeams.find((candidate) => candidate.id === id.slice(5))
+      if (team) {
+        return {
+          id,
+          kind: 'team',
+          name: team.title,
+          icon: team.image || FALLBACK_IMAGE,
+          subtitle: `${team.category} · ${team.city}`,
+          creatorId: team.creatorId,
+        }
+      }
+      return null
+    }
+    if (id.startsWith('dm:')) {
+      const parts = id.slice(3).split(':')
+      const peerId = parts.find((candidate) => candidate !== user?.id) ?? parts[0]
+      return {
+        id,
+        kind: 'dm',
+        name: resolvePeerName(peerId),
+        subtitle: 'Личный чат',
+        creatorId: peerId,
+      }
+    }
+    const category = allCategories.find((candidate) => candidate.id === id)
+    if (category) {
+      return { id, kind: 'sphere', name: category.name, icon: category.icon, subtitle: 'Чат сферы' }
+    }
+    return null
+  }
+
+  const teamRefs = useMemo(() => {
+    if (!user) return []
+    const myTeamIds = new Set<string>()
+    db.customTeams.forEach((team) => {
+      if (team.creatorId === user.id) myTeamIds.add(team.id)
+    })
+    db.applications.forEach((application) => {
+      if (application.userId === user.id) myTeamIds.add(application.teamId)
+    })
+    return db.customTeams
+      .filter((team) => myTeamIds.has(team.id))
+      .map((team) =>
+        resolveChat(`team:${team.id}`),
+      )
+      .filter((ref): ref is ChatRef => ref !== null)
+  }, [db.customTeams, db.applications, user])
+
+  const dmRefs = useMemo(() => {
+    if (!user) return []
+    const keys = new Set<string>()
+    for (const key of Object.keys(db.chats)) {
+      if (key.startsWith('dm:') && key.slice(3).split(':').includes(user.id)) keys.add(key)
+    }
+    db.applications
+      .filter((application) => application.userId === user.id)
+      .forEach((application) => {
+        const team = db.customTeams.find((candidate) => candidate.id === application.teamId)
+        if (team && team.creatorId !== user.id) keys.add(dmChatId(user.id, team.creatorId))
+      })
+    const myTeamIds = new Set(
+      db.customTeams.filter((team) => team.creatorId === user.id).map((team) => team.id),
+    )
+    db.applications
+      .filter((application) => myTeamIds.has(application.teamId) && application.userId !== user.id)
+      .forEach((application) => keys.add(dmChatId(user.id, application.userId)))
+    return Array.from(keys)
+      .map(resolveChat)
+      .filter((ref): ref is ChatRef => ref !== null)
+  }, [db.chats, db.applications, db.customTeams, db.users, user])
+
+  const sphereRefs = useMemo(
+    () =>
+      allCategories.map((category) => ({
+        id: category.id,
+        kind: 'sphere' as const,
+        name: category.name,
+        icon: category.icon,
+        subtitle: 'Чат сферы',
+      })),
+    [allCategories],
+  )
+
+  const folders = [
+    { label: 'Сферы', refs: sphereRefs, empty: 'Чат каждой сферы — здесь.' },
+    {
+      label: 'Команды',
+      refs: teamRefs,
+      empty: 'Ты пока не участвуешь в командах. Открой «Чат команды» на её карточке.',
+    },
+    {
+      label: 'Личные чаты',
+      refs: dmRefs,
+      empty: 'Личные переписки с создателями и участниками появятся после заявок.',
+    },
+  ]
+
+  const active = selectedId ? resolveChat(selectedId) : null
+  const messages = active ? (db.chats[active.id] ?? []) : []
   const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
   useEffect(() => {
@@ -46,8 +183,8 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
 
   const send = () => {
     const value = text.trim()
-    if (!value || !selectedId) return
-    addChatMessage(selectedId, value)
+    if (!value || !active) return
+    addChatMessage(active.id, value)
     setText('')
   }
 
@@ -71,7 +208,7 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
         <div className="flex items-center justify-between gap-3 border-b border-cream px-6 py-4">
           <div>
             <p className="text-lg font-extrabold text-ink">Чаты</p>
-            <p className="text-[12px] text-muted">Обсуждения по сферам</p>
+            <p className="text-[12px] text-muted">Сферы · команды · личные чаты</p>
           </div>
           <button
             type="button"
@@ -86,34 +223,51 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
         <div className="flex min-h-0 flex-1">
           {showList ? (
             <aside className="w-full shrink-0 overflow-y-auto border-r border-cream bg-blush/40 md:w-64">
-              {allCategories.map((category) => {
-                const count = db.chats[category.id]?.length ?? 0
-                const isActive = category.id === selectedId
-                return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => setSelectedId(category.id)}
-                    aria-pressed={isActive}
-                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${
-                      isActive ? 'bg-white' : 'hover:bg-white/60'
-                    }`}
-                  >
-                    <img src={category.icon} alt="" className="h-8 w-8 shrink-0 object-contain" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-bold text-ink">{category.name}</p>
-                      <p className="truncate text-[11px] text-muted">
-                        {count ? `${count} сообщ.` : 'Нет сообщений'}
-                      </p>
-                    </div>
-                    {count > 0 ? (
-                      <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-white">
-                        {count}
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
+              {folders.map((folder) => (
+                <div key={folder.label}>
+                  <p className="px-4 pb-1 pt-4 text-[10px] font-extrabold uppercase tracking-wider text-muted">
+                    {folder.label}
+                  </p>
+                  {folder.refs.length === 0 ? (
+                    <p className="px-4 pb-2 text-[11px] leading-snug text-muted/80">{folder.empty}</p>
+                  ) : (
+                    folder.refs.map((ref) => {
+                      const count = db.chats[ref.id]?.length ?? 0
+                      const isActive = ref.id === selectedId
+                      return (
+                        <button
+                          key={ref.id}
+                          type="button"
+                          onClick={() => setSelectedId(ref.id)}
+                          aria-pressed={isActive}
+                          className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
+                            isActive ? 'bg-white' : 'hover:bg-white/60'
+                          }`}
+                        >
+                          {ref.icon ? (
+                            <img src={ref.icon} alt="" className="h-8 w-8 shrink-0 rounded-xl object-cover" />
+                          ) : (
+                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
+                              {initialsOf(ref.name)}
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-bold text-ink">{ref.name}</p>
+                            <p className="truncate text-[11px] text-muted">
+                              {count ? `${count} сообщ.` : ref.subtitle}
+                            </p>
+                          </div>
+                          {count > 0 ? (
+                            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-white">
+                              {count}
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              ))}
             </aside>
           ) : null}
 
@@ -132,10 +286,32 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
                 ) : null}
                 {active ? (
                   <>
-                    <img src={active.icon} alt="" className="h-6 w-6 shrink-0 object-contain" />
-                    <p className="truncate text-sm font-extrabold text-ink">
-                      Чат сферы «{active.name}»
-                    </p>
+                    {active.icon ? (
+                      <img src={active.icon} alt="" className="h-6 w-6 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
+                        {initialsOf(active.name)}
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-extrabold text-ink">{active.name}</p>
+                      <p className="truncate text-[11px] text-muted">
+                        {active.kind === 'sphere'
+                          ? 'Чат сферы'
+                          : active.kind === 'team'
+                            ? `${active.subtitle}`
+                            : 'Личный чат'}
+                      </p>
+                    </div>
+                    {active.kind === 'team' && user && active.creatorId && active.creatorId !== user.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(dmChatId(user.id, active.creatorId!))}
+                        className="shrink-0 rounded-full border border-brand/30 px-3 py-1.5 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                      >
+                        Написать создателю
+                      </button>
+                    ) : null}
                   </>
                 ) : (
                   <p className="text-sm font-extrabold text-ink">Чат</p>

@@ -11,10 +11,12 @@ export function TeamCard({
   team,
   onApply,
   onReview,
+  onChat,
 }: {
   team: Team
   onApply(team: Team): void
   onReview?(team: Team): void
+  onChat?(team: Team): void
 }) {
   const [saved, setSaved] = useState(false)
 
@@ -71,6 +73,29 @@ export function TeamCard({
                 aria-label="Оставить отзыв о команде"
               >
                 Отзыв
+              </button>
+            ) : null}
+            {onChat && team.creatorId ? (
+              <button
+                type="button"
+                onClick={() => onChat(team)}
+                className="text-muted hover:text-brand"
+                aria-label="Чат команды"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                  <path
+                    d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A2.5 2.5 0 0 1 3 14.5v-8Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M7.5 9h9M7.5 12.5h5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
               </button>
             ) : null}
             <button

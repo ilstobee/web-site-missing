@@ -10,6 +10,7 @@ import { TeamReviewModal } from './TeamReviewModal'
 
 type Props = {
   onOpenAuth(): void
+  onOpenChat(chatId: string): void
 }
 
 export function customToTeam(team: CustomTeam): Team {
@@ -30,7 +31,7 @@ export function customToTeam(team: CustomTeam): Team {
   }
 }
 
-export function FeaturedTeams({ onOpenAuth }: Props) {
+export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
   const { db, user } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -124,6 +125,7 @@ export function FeaturedTeams({ onOpenAuth }: Props) {
                 team={team}
                 onApply={handleApply}
                 onReview={setReviewTeam}
+                onChat={(item) => onOpenChat(`team:${item.id}`)}
               />
             ))}
             {filtered.length === 0 ? (

@@ -7,7 +7,7 @@ import { customToTeam } from './FeaturedTeams'
 import { ApplyModal } from './ApplyModal'
 import { TeamReviewModal } from './TeamReviewModal'
 
-export function RecommendedTeams() {
+export function RecommendedTeams({ onOpenChat }: { onOpenChat(chatId: string): void }) {
   const { db, user } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
@@ -44,6 +44,7 @@ export function RecommendedTeams() {
                   team={team}
                   onApply={setApplyTeam}
                   onReview={setReviewTeam}
+                  onChat={(item) => onOpenChat(`team:${item.id}`)}
                 />
               ))}
             </div>

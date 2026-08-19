@@ -294,6 +294,10 @@ export function isValidPhone(value: string): boolean {
   return digits.length >= 10 && digits.length <= 15
 }
 
+export function dmChatId(a: string, b: string): string {
+  return `dm:${[a, b].sort().join(':')}`
+}
+
 const CUSTOM_TINT = 'bg-[#fde4df]'
 
 function toCategory(custom: CustomCategory): Category {

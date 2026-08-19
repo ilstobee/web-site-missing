@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useApp } from '../store'
+import { useApp, dmChatId } from '../store'
 import type { UserRole } from '../store'
 import { fmtDate } from '../store'
 
@@ -7,6 +7,7 @@ type Props = {
   open: boolean
   onClose(): void
   initialTab?: Tab
+  onOpenChat(chatId: string): void
 }
 
 type Tab = 'profile' | 'applications' | 'incoming' | 'reviews' | 'history' | 'moderation'
@@ -22,7 +23,7 @@ const statusLabel = {
   rejected: 'Отклонена',
 } as const
 
-export function ProfileModal({ open, onClose, initialTab }: Props) {
+export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   const {
     user,
     db,
@@ -377,6 +378,20 @@ export function ProfileModal({ open, onClose, initialTab }: Props) {
                       <p className="mt-2 text-[11px] text-muted">
                         {fmtDate(application.createdAt)}
                       </p>
+                      {(() => {
+                        const team = db.customTeams.find(
+                          (candidate) => candidate.id === application.teamId,
+                        )
+                        return team && team.creatorId !== user.id ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenChat(dmChatId(user.id, team.creatorId))}
+                            className="mt-3 rounded-full border border-brand/30 px-4 py-2 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                          >
+                            Написать создателю
+                          </button>
+                        ) : null
+                      })()}
                     </article>
                   ))}
                 </div>
@@ -449,6 +464,13 @@ export function ProfileModal({ open, onClose, initialTab }: Props) {
                       <p className="mt-2 text-[11px] text-muted">
                         {fmtDate(application.createdAt)}
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => onOpenChat(dmChatId(user.id, application.userId))}
+                        className="mt-3 rounded-full border border-brand/30 px-4 py-2 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                      >
+                        Написать участнику
+                      </button>
                     </article>
                   ))}
                 </div>

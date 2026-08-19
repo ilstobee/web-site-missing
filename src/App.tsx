@@ -42,14 +42,11 @@ export default function App() {
     setProfileOpen(true)
   }
   const closeProfile = () => setProfileOpen(false)
-  const openChat = () => {
-    setChatInitialId(undefined)
+  const openChat = (chatId?: string) => {
+    setChatInitialId(chatId)
     setChatOpen(true)
   }
-  const openSphereChat = (id: string) => {
-    setChatInitialId(id)
-    setChatOpen(true)
-  }
+  const openHeaderChat = () => openChat()
   const closeChat = () => setChatOpen(false)
 
   const handleSphereChange = (id: string) => {
@@ -89,7 +86,7 @@ export default function App() {
 
   return (
     <div id="top" className="min-h-svh wave-top">
-      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={openChat} />
+      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={openHeaderChat} />
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
         <Hero />
@@ -97,16 +94,16 @@ export default function App() {
           activeId={activeSphere}
           onActiveChange={handleSphereChange}
           onOpenAuth={openAuth}
-          onOpenChat={openSphereChat}
+          onOpenChat={openChat}
         />
-        <FeaturedTeams onOpenAuth={openAuth} />
+        <FeaturedTeams onOpenAuth={openAuth} onOpenChat={openChat} />
         <CreateBanner onOpenAuth={openAuth} />
-        <RecommendedTeams />
+        <RecommendedTeams onOpenChat={openChat} />
         <StatsBar />
       </main>
       <Footer />
       <AuthModal open={authOpen} onClose={closeAuth} onSuccess={closeAuth} />
-      <ProfileModal open={profileOpen} onClose={closeProfile} initialTab={profileInitialTab} />
+      <ProfileModal open={profileOpen} onClose={closeProfile} initialTab={profileInitialTab} onOpenChat={openChat} />
       <ChatModal open={chatOpen} onClose={closeChat} initialChatId={chatInitialId} />
     </div>
   )
