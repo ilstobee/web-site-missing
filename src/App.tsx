@@ -11,12 +11,14 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
 import { ProfileModal } from './components/ProfileModal'
+import { ChatModal } from './components/ChatModal'
 import { VerifyBanner } from './components/VerifyBanner'
 
 export default function App() {
   const { recordVisit, user, emailVerified } = useApp()
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const [profileInitialTab, setProfileInitialTab] = useState<'profile' | 'applications'>('profile')
   const [activeSphere, setActiveSphere] = useState('travel')
   const [loading, setLoading] = useState(true)
@@ -39,6 +41,8 @@ export default function App() {
     setProfileOpen(true)
   }
   const closeProfile = () => setProfileOpen(false)
+  const openChat = () => setChatOpen(true)
+  const closeChat = () => setChatOpen(false)
 
   const handleSphereChange = (id: string) => {
     setActiveSphere(id)
@@ -77,7 +81,7 @@ export default function App() {
 
   return (
     <div id="top" className="min-h-svh wave-top">
-      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={() => {}} />
+      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={openChat} />
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
         <Hero />
@@ -94,6 +98,7 @@ export default function App() {
       <Footer />
       <AuthModal open={authOpen} onClose={closeAuth} onSuccess={closeAuth} />
       <ProfileModal open={profileOpen} onClose={closeProfile} initialTab={profileInitialTab} />
+      <ChatModal open={chatOpen} onClose={closeChat} />
     </div>
   )
 }

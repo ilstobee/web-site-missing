@@ -37,10 +37,27 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
           <a href="#spheres" className="hover:text-brand">Сферы</a>
           <a href="#teams" className="hover:text-brand">Команды</a>
           <a href="#for-you" className="hover:text-brand">Для тебя</a>
-          <button type="button" onClick={onOpenChat} className="hover:text-brand">Чат</button>
+          <button type="button" onClick={onOpenChat} className="hover:text-brand">Чаты</button>
         </nav>
 
         <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            type="button"
+            onClick={onOpenChat}
+            className="grid h-10 w-10 place-items-center text-ink"
+            aria-label="Чаты"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+              <path
+                d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A2.5 2.5 0 0 1 3 14.5v-8Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path d="M7.5 9h9M7.5 12.5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+
           <div className="relative">
             <button
               type="button"

@@ -122,6 +122,7 @@ export type TeamReview = {
 
 export type ChatMessage = {
   id: string
+  userId?: string
   authorName: string
   text: string
   createdAt: string
@@ -834,6 +835,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const authorName = user ? `${user.name} ${user.surname}`.trim() : 'Гость'
       const message: ChatMessage = {
         id: uid(),
+        userId: user?.id,
         authorName,
         text: censor(text),
         createdAt: new Date().toISOString(),
