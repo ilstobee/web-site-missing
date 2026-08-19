@@ -7,6 +7,7 @@ import { FeaturedTeams } from './components/FeaturedTeams'
 import { CreateBanner } from './components/CreateBanner'
 import { RecommendedTeams } from './components/RecommendedTeams'
 import { StatsBar } from './components/StatsBar'
+import { LoadingScreen } from './components/LoadingScreen'
 import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
 import { ProfileModal } from './components/ProfileModal'
@@ -17,6 +18,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileInitialTab, setProfileInitialTab] = useState<'profile' | 'applications'>('profile')
   const [activeSphere, setActiveSphere] = useState('travel')
+  const [loading, setLoading] = useState(true)
   const openAuth = () => setAuthOpen(true)
   const closeAuth = () => setAuthOpen(false)
   const openProfile = () => {
@@ -44,6 +46,7 @@ export default function App() {
 
   return (
     <div id="top" className="min-h-svh wave-top">
+      {loading && <LoadingScreen onDone={() => setLoading(false)} />}
       <div className="wave-strip" aria-hidden />
       <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={() => {}} />
       <main>
