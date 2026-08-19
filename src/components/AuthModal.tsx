@@ -18,6 +18,72 @@ type Props = {
 type Mode = 'login' | 'register' | 'forgot' | 'verify'
 type Contact = 'email' | 'phone'
 
+type Country = {
+  flag: string
+  code: string
+  prefix: string
+  label: string
+}
+
+const COUNTRIES: Country[] = [
+  { flag: '🇷🇺', code: '+7', prefix: '7', label: 'Россия' },
+  { flag: '🇰🇿', code: '+7', prefix: '7', label: 'Казахстан' },
+  { flag: '🇧🇾', code: '+375', prefix: '375', label: 'Беларусь' },
+  { flag: '🇺🇦', code: '+380', prefix: '380', label: 'Украина' },
+  { flag: '🇺🇸', code: '+1', prefix: '1', label: 'США' },
+  { flag: '🇬🇧', code: '+44', prefix: '44', label: 'Великобритания' },
+  { flag: '🇩🇪', code: '+49', prefix: '49', label: 'Германия' },
+  { flag: '🇫🇷', code: '+33', prefix: '33', label: 'Франция' },
+  { flag: '🇪🇸', code: '+34', prefix: '34', label: 'Испания' },
+  { flag: '🇮🇹', code: '+39', prefix: '39', label: 'Италия' },
+  { flag: '🇹🇷', code: '+90', prefix: '90', label: 'Турция' },
+  { flag: '🇨🇳', code: '+86', prefix: '86', label: 'Китай' },
+  { flag: '🇮🇳', code: '+91', prefix: '91', label: 'Индия' },
+  { flag: '🇺🇿', code: '+998', prefix: '998', label: 'Узбекистан' },
+  { flag: '🇦🇲', code: '+374', prefix: '374', label: 'Армения' },
+  { flag: '🇬🇪', code: '+995', prefix: '995', label: 'Грузия' },
+  { flag: '🇦🇿', code: '+994', prefix: '994', label: 'Азербайджан' },
+  { flag: '🇲🇩', code: '+373', prefix: '373', label: 'Молдова' },
+  { flag: '🇱🇹', code: '+370', prefix: '370', label: 'Литва' },
+  { flag: '🇱🇻', code: '+371', prefix: '371', label: 'Латвия' },
+  { flag: '🇪🇪', code: '+372', prefix: '372', label: 'Эстония' },
+  { flag: '🇵🇱', code: '+48', prefix: '48', label: 'Польша' },
+  { flag: '🇨🇿', code: '+420', prefix: '420', label: 'Чехия' },
+  { flag: '🇫🇮', code: '+358', prefix: '358', label: 'Финляндия' },
+  { flag: '🇸🇪', code: '+46', prefix: '46', label: 'Швеция' },
+  { flag: '🇳🇴', code: '+47', prefix: '47', label: 'Норвегия' },
+  { flag: '🇩🇰', code: '+45', prefix: '45', label: 'Дания' },
+  { flag: '🇳🇱', code: '+31', prefix: '31', label: 'Нидерланды' },
+  { flag: '🇨🇭', code: '+41', prefix: '41', label: 'Швейцария' },
+  { flag: '🇦🇹', code: '+43', prefix: '43', label: 'Австрия' },
+  { flag: '🇯🇵', code: '+81', prefix: '81', label: 'Япония' },
+  { flag: '🇰🇷', code: '+82', prefix: '82', label: 'Южная Корея' },
+  { flag: '🇮🇱', code: '+972', prefix: '972', label: 'Израиль' },
+  { flag: '🇦🇪', code: '+971', prefix: '971', label: 'ОАЭ' },
+  { flag: '🇧🇷', code: '+55', prefix: '55', label: 'Бразилия' },
+  { flag: '🇲🇽', code: '+52', prefix: '52', label: 'Мексика' },
+  { flag: '🇦🇺', code: '+61', prefix: '61', label: 'Австралия' },
+]
+
+function detectCountry(digits: string): { country: Country; national: string } {
+  let best: Country | null = null
+  for (const country of COUNTRIES) {
+    if (digits.startsWith(country.prefix) && (!best || country.prefix.length > best.prefix.length)) {
+      best = country
+    }
+  }
+  if (best) return { country: best, national: digits.slice(best.prefix.length) }
+  return { country: COUNTRIES[0], national: digits }
+}
+
+function formatNational(digits: string): string {
+  if (!digits) return ''
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`
+  }
+  return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim()
+}
+
 export function AuthModal({ open, onClose, onSuccess }: Props) {
   const {
     register,
@@ -33,7 +99,9 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
-  const [phoneValue, setPhoneValue] = useState('')
+  const [phoneDigits, setPhoneDigits] = useState('')
+  const [phoneCountry, setPhoneCountry] = useState<Country>(COUNTRIES[0])
+  const [countryOpen, setCountryOpen] = useState(false)
   const [codeValue, setCodeValue] = useState('')
   const [verificationId, setVerificationId] = useState('')
   const [codeSent, setCodeSent] = useState(false)
@@ -168,8 +236,23 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     }
   }
 
+  const e164Phone = `${phoneCountry.prefix}${phoneDigits}`
+
+  const handlePhoneChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '')
+    const { country, national } = detectCountry(digits)
+    setPhoneCountry(country)
+    setPhoneDigits(national)
+    setCountryOpen(false)
+  }
+
+  const pickCountry = (country: Country) => {
+    setPhoneCountry(country)
+    setCountryOpen(false)
+  }
+
   const sendCode = async () => {
-    if (!isValidPhone(phoneValue)) {
+    if (!isValidPhone(e164Phone)) {
       setError('Введи корректный номер телефона (например: +7 900 000-00-00)')
       return
     }
@@ -178,7 +261,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     try {
       const container = document.getElementById('fb-recaptcha')
       if (container) container.innerHTML = ''
-      const confirmation = await sendPhoneCode(phoneValue, 'fb-recaptcha')
+      const confirmation = await sendPhoneCode(`+${e164Phone}`, 'fb-recaptcha')
       setVerificationId(confirmation.verificationId)
       setCodeSent(true)
     } catch (caught) {
@@ -226,7 +309,9 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const reset = () => {
     setLoginValue('')
     setPassword('')
-    setPhoneValue('')
+    setPhoneDigits('')
+    setPhoneCountry(COUNTRIES[0])
+    setCountryOpen(false)
     setCodeValue('')
     setVerificationId('')
     setCodeSent(false)
@@ -278,7 +363,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       {codeSent ? (
         <>
           <p className="rounded-xl bg-brand-soft px-4 py-2.5 text-[13px] font-medium text-brand">
-            Код отправлен на {phoneValue}. Введи его ниже.
+            Код отправлен на {phoneCountry.code} {formatNational(phoneDigits)}. Введи его ниже.
           </p>
           <input
             className={inputClass}
@@ -298,13 +383,51 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         </>
       ) : (
         <>
-          <input
-            className={inputClass}
-            inputMode="tel"
-            placeholder="+7 900 000-00-00"
-            value={phoneValue}
-            onChange={(event) => setPhoneValue(event.target.value)}
-          />
+          <div className="relative">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCountryOpen((value) => !value)}
+                className="shrink-0 rounded-xl border border-ink/10 bg-cream px-3 py-2.5 text-sm font-semibold text-ink transition hover:border-brand"
+              >
+                <span className="mr-1.5">{phoneCountry.flag}</span>
+                {phoneCountry.code} ▾
+              </button>
+              <input
+                className={inputClass}
+                inputMode="tel"
+                placeholder="900 000-00-00"
+                value={formatNational(phoneDigits)}
+                onChange={(event) => handlePhoneChange(event.target.value)}
+              />
+            </div>
+            {countryOpen ? (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setCountryOpen(false)}
+                />
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-56 w-64 overflow-y-auto rounded-2xl border border-ink/10 bg-white p-1 shadow-lg">
+                  {COUNTRIES.map((country) => (
+                    <button
+                      key={`${country.code}-${country.label}`}
+                      type="button"
+                      onClick={() => pickCountry(country)}
+                      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] transition hover:bg-cream ${
+                        country.code === phoneCountry.code && country.label === phoneCountry.label
+                          ? 'bg-brand-soft font-semibold text-brand'
+                          : 'text-ink'
+                      }`}
+                    >
+                      <span>{country.flag}</span>
+                      <span className="font-semibold">{country.code}</span>
+                      <span className="truncate text-muted">{country.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
           <button
             type="button"
             disabled={sending}
@@ -314,7 +437,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
             {sending ? 'Отправляем…' : 'Получить код'}
           </button>
           <p className="text-center text-[11px] text-muted">
-            Придёт SMS с кодом подтверждения.
+            Страна определяется автоматически по коду номера.
           </p>
         </>
       )}
