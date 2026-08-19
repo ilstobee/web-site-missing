@@ -23,6 +23,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Create .env from secrets
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > .env
+          fi
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
