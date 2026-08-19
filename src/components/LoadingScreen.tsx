@@ -25,7 +25,6 @@ export function LoadingScreen({ onDone }: Props) {
       finished = true
       window.clearTimeout(fallbackTimer)
       window.clearTimeout(minTimer)
-      window.removeEventListener('load', ready)
       if (anim) {
         try {
           anim.destroy()
@@ -37,33 +36,24 @@ export function LoadingScreen({ onDone }: Props) {
       doneRef.current()
     }
 
-    const ready = () => {
-      if (finished) return
-      if (document.readyState === 'complete') {
-        finish()
-      }
-    }
-
     try {
       anim = lottie.loadAnimation({
         container,
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: `${import.meta.env.BASE_URL}loading.json?v=2`,
+        path: `${import.meta.env.BASE_URL}loading.json?v=3`,
       })
     } catch {
       finish()
     }
 
-    window.addEventListener('load', ready)
-    minTimer = window.setTimeout(ready, 5400)
+    minTimer = window.setTimeout(finish, 5400)
     fallbackTimer = window.setTimeout(finish, 8000)
 
     return () => {
       window.clearTimeout(fallbackTimer)
       window.clearTimeout(minTimer)
-      window.removeEventListener('load', ready)
       if (anim) {
         try {
           anim.destroy()
