@@ -14,6 +14,7 @@ import {
   signUpWithEmail,
   signOutFb,
   changePasswordFb,
+  changeEmailFb,
   addTeamFb,
   addCategoryFb,
   setTeamStatusFb,
@@ -207,6 +208,7 @@ type AppContextValue = {
   updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
   setUserRole(role: UserRole): void
   changePassword(current: string, next: string): string | null
+  changeEmail(next: string): Promise<string | null>
   addReview(sphereId: string, rating: number, text: string): void
   removeReview(id: string): void
   addTeamReview(teamId: string, teamTitle: string, sphereId: string, rating: number, text: string): void
@@ -739,6 +741,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null
     }
 
+    const changeEmail = async (next: string): Promise<string | null> => {
+      if (!user) return 'Сначала войди в аккаунт'
+      const trimmed = next.trim().toLowerCase()
+      if (!trimmed) return 'Введи email'
+      if (!isValidEmail(trimmed)) return 'Введи корректный email'
+      if (trimmed === user.login.toLowerCase()) return null
+      if (firebaseEnabled && user.id.startsWith('fb-')) {
+        try {
+          await changeEmailFb(trimmed)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          if (message.includes('recent-login')) {
+            return 'Войди в аккаунт заново, затем повтори попытку'
+          }
+          if (message.includes('email-already-in-use')) return 'Этот email уже используется'
+          if (message.includes('invalid-email')) return 'Некорректный email'
+          return 'Не удалось сменить email. Попробуй ещё раз'
+        }
+      }
+      mutate((d) => ({
+        ...d,
+        users: d.users.map((candidate) =>
+          candidate.id === user.id ? { ...candidate, login: trimmed } : candidate,
+        ),
+      }))
+      return null
+    }
+
     const setUserRole = (role: UserRole) => {
       if (!user) return
       mutate((d) => ({
@@ -1053,6 +1083,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateProfile,
       setUserRole,
       changePassword,
+      changeEmail,
       addReview,
       removeReview,
       addTeamReview,

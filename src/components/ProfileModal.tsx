@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useApp, dmChatId } from '../store'
+import { useApp, dmChatId, isValidEmail } from '../store'
 import type { UserRole } from '../store'
 import { fmtDate } from '../store'
 
@@ -30,6 +30,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     updateProfile,
     setUserRole,
     changePassword,
+    changeEmail,
     setApplicationStatus,
     removeReview,
     removeTeamReview,
@@ -59,6 +60,10 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordDone, setPasswordDone] = useState(false)
 
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [emailDone, setEmailDone] = useState(false)
+
   useEffect(() => {
     if (open && user) {
       setName(user.name)
@@ -66,6 +71,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       setCity(user.city)
       setTelegram(user.telegram)
       setHobbies(user.hobbies)
+      setEmail(user.login)
     }
   }, [open, user])
 
@@ -119,6 +125,21 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     setNextPassword('')
     setPasswordDone(true)
     window.setTimeout(() => setPasswordDone(false), 2500)
+  }
+
+  const submitEmail = async () => {
+    if (!isValidEmail(email.trim())) {
+      setEmailError('Введи корректный email')
+      return
+    }
+    const err = await changeEmail(email)
+    if (err) {
+      setEmailError(err)
+      return
+    }
+    setEmailError(null)
+    setEmailDone(true)
+    window.setTimeout(() => setEmailDone(false), 2500)
   }
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
@@ -332,6 +353,38 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                 </button>
                 {passwordDone ? (
                   <span className="ml-2 text-[13px] font-semibold text-brand">✓ Пароль изменён!</span>
+                ) : null}
+              </div>
+
+              <div>
+                <p className="text-sm font-extrabold text-ink">Сменить email</p>
+                <div className="mt-2">
+                  <input
+                    type="email"
+                    value={email}
+                    placeholder="Email для входа"
+                    onChange={(event) => setEmail(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') submitEmail()
+                    }}
+                    className="w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
+                  />
+                </div>
+                {emailError ? (
+                  <p className="mt-2 text-[12px] font-semibold text-brand">{emailError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={submitEmail}
+                  disabled={email === user.login}
+                  className="mt-3 rounded-full border border-brand px-5 py-2.5 text-[13px] font-semibold text-brand transition hover:bg-brand-soft disabled:opacity-50"
+                >
+                  Сменить email
+                </button>
+                {emailDone ? (
+                  <span className="ml-2 text-[13px] font-semibold text-brand">
+                    ✓ Email изменён! Теперь входи с новым адресом.
+                  </span>
                 ) : null}
               </div>
             </div>

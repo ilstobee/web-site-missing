@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   sendPasswordResetEmail,
+  updateEmail,
   reload,
   updatePassword,
   RecaptchaVerifier,
@@ -86,6 +87,13 @@ export async function changePasswordFb(next: string): Promise<void> {
   const current = auth.currentUser
   if (!current) throw new Error('Сначала войди в аккаунт')
   await updatePassword(current, next)
+}
+
+export async function changeEmailFb(next: string): Promise<void> {
+  if (!auth) throw new Error('Firebase не настроен')
+  const current = auth.currentUser
+  if (!current) throw new Error('Сначала войди в аккаунт')
+  await updateEmail(current, next)
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<void> {
