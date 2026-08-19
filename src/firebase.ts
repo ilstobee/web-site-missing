@@ -31,10 +31,21 @@ import {
   query,
   orderBy,
   where,
+  getDocs,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore'
 import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage'
-import type { ChatMessage, CustomCategory, CustomTeam, ModerationStatus, User, UserRole } from './store'
+import type {
+  Application,
+  ChatMessage,
+  CustomCategory,
+  CustomTeam,
+  ModerationStatus,
+  Notification,
+  User,
+  UserRole,
+} from './store'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
@@ -374,4 +385,111 @@ export function subscribeParticipantChatsFb(
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map((docSnap) => docSnap.id))
   })
+}
+
+function sanitize(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+}
+
+export async function addApplicationFb(application: Application): Promise<void> {
+  if (!db) return
+  const { id, ...data } = application
+  await setDoc(doc(db, 'applications', id), sanitize({ ...data }))
+}
+
+export async function setApplicationStatusFb(
+  id: string,
+  status: 'accepted' | 'rejected',
+): Promise<void> {
+  if (!db) return
+  await updateDoc(doc(db, 'applications', id), { status })
+}
+
+export function subscribeApplicationsFb(
+  userId: string,
+  teamIds: string[],
+  callback: (applications: Application[]) => void,
+): () => void {
+  if (!db) return () => {}
+  const buffer = new Map<string, Application>()
+  const emit = () => {
+    callback(
+      Array.from(buffer.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    )
+  }
+  const attach = (q: ReturnType<typeof query>) =>
+    onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'removed') {
+          buffer.delete(change.doc.id)
+        } else {
+          buffer.set(
+            change.doc.id,
+            {
+              id: change.doc.id,
+              ...(change.doc.data() as Record<string, unknown>),
+            } as Application,
+          )
+        }
+      })
+      emit()
+    })
+  const unsubs: (() => void)[] = []
+  unsubs.push(
+    attach(
+      query(
+        collection(db, 'applications'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+      ),
+    ),
+  )
+  for (let i = 0; i < teamIds.length; i += 10) {
+    const chunk = teamIds.slice(i, i + 10)
+    unsubs.push(
+      attach(
+        query(
+          collection(db, 'applications'),
+          where('teamId', 'in', chunk),
+          orderBy('createdAt', 'desc'),
+        ),
+      ),
+    )
+  }
+  return () => unsubs.forEach((unsubscribe) => unsubscribe())
+}
+
+export function addNotificationFb(notification: Notification): void {
+  if (!db) return
+  void setDoc(doc(db, 'notifications', notification.id), sanitize({ ...notification }))
+}
+
+export function subscribeNotificationsFb(
+  userId: string,
+  callback: (notifications: Notification[]) => void,
+): () => void {
+  if (!db) return () => {}
+  const q = query(
+    collection(db, 'notifications'),
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc'),
+  )
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Notification))
+  })
+}
+
+export async function markNotificationsReadFb(userId: string): Promise<void> {
+  if (!db) return
+  const q = query(
+    collection(db, 'notifications'),
+    where('userId', '==', userId),
+    where('read', '==', false),
+  )
+  const snapshot = await getDocs(q)
+  const batch = writeBatch(db)
+  snapshot.docs.forEach((docSnap) => {
+    batch.update(docSnap.ref, { read: true })
+  })
+  await batch.commit()
 }

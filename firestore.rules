@@ -52,5 +52,29 @@ service cloud.firestore {
         && request.resource.data.authorId == 'fb-' + request.auth.uid;
       allow update, delete: if isAdmin();
     }
+
+    // Заявки: читает сам заявитель и организатор команды,
+    // создаёт сам заявитель, статус меняет только организатор
+    match /applications/{applicationId} {
+      allow read: if request.auth != null
+        && (resource.data.userId == 'fb-' + request.auth.uid
+            || resource.data.creatorId == 'fb-' + request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.userId == 'fb-' + request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.creatorId == 'fb-' + request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Уведомления: пишет любой авторизованный (создание уведомления получателю),
+    // читает и отмечает прочитанными только получатель
+    match /notifications/{notificationId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null
+        && resource.data.userId == 'fb-' + request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == 'fb-' + request.auth.uid;
+      allow delete: if false;
+    }
   }
 }

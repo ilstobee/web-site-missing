@@ -30,6 +30,12 @@ import {
   sendMessageFb,
   subscribeChatMessagesFb,
   subscribeParticipantChatsFb,
+  addApplicationFb,
+  setApplicationStatusFb,
+  subscribeApplicationsFb,
+  addNotificationFb,
+  subscribeNotificationsFb,
+  markNotificationsReadFb,
 } from './firebase'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
@@ -73,6 +79,7 @@ export type Application = {
   sphereName: string
   userId: string
   userName: string
+  creatorId: string
   city: string
   contacts: string
   telegram: string
@@ -454,6 +461,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   allCategoriesRef.current = allCategories
   const activeChatRef = useRef<string | null>(null)
 
+  const myTeamIds = useMemo(
+    () =>
+      db.customTeams
+        .filter((team) => team.creatorId === (user?.id ?? ''))
+        .map((team) => team.id),
+    [db.customTeams, user?.id],
+  )
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    if (!user) return
+    let alive = true
+    const unsubApps = subscribeApplicationsFb(user.id, myTeamIds, (applications) => {
+      if (alive) setDb((d) => ({ ...d, applications }))
+    })
+    const unsubNotifs = subscribeNotificationsFb(user.id, (notifications) => {
+      if (alive) setDb((d) => ({ ...d, notifications }))
+    })
+    return () => {
+      alive = false
+      unsubApps()
+      unsubNotifs()
+    }
+  }, [user?.id, myTeamIds])
+
   useEffect(() => {
     if (!firebaseEnabled) return
     let alive = true
@@ -500,21 +532,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (last.userId === userRef.current?.id) return
       const incoming = `💬 ${last.authorName}: ${last.text}`
       const inActive = activeChatRef.current === chatId
-      setDb((d) => ({
-        ...d,
-        notifications: [
-          {
-            id: uid(),
-            userId: userRef.current?.id ?? '',
-            text: incoming,
-            read: inActive,
-            createdAt: new Date().toISOString(),
-            chatId,
-          },
-          ...d.notifications,
-        ],
-        ...(inActive ? { chatRead: { ...d.chatRead, [chatId]: last.createdAt } } : {}),
-      }))
+      const notification: Notification = {
+        id: uid(),
+        userId: userRef.current?.id ?? '',
+        text: incoming,
+        read: inActive,
+        createdAt: new Date().toISOString(),
+        chatId,
+      }
+      if (firebaseEnabled) {
+        addNotificationFb(notification)
+        if (inActive) {
+          setDb((d) => ({ ...d, chatRead: { ...d.chatRead, [chatId]: last.createdAt } }))
+        }
+      } else {
+        setDb((d) => ({
+          ...d,
+          notifications: [notification, ...d.notifications],
+          ...(inActive ? { chatRead: { ...d.chatRead, [chatId]: last.createdAt } } : {}),
+        }))
+      }
       if (!inActive && typeof window !== 'undefined' && 'Notification' in window) {
         try {
           if (
@@ -853,9 +890,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         review: censor(input.review),
         status: 'pending',
         createdAt: new Date().toISOString(),
+        creatorId: team?.creatorId ?? '',
+      }
+      if (firebaseEnabled) {
+        void addApplicationFb(application)
+        if (team) {
+          addNotificationFb({
+            id: uid(),
+            userId: team.creatorId,
+            text: `📩 ${application.userName} оставил(а) заявку в твою команду «${team.title}»! Загляни в личный кабинет.`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          })
+        }
+        return
       }
       mutate((d) => {
-        const team = d.customTeams.find((candidate) => candidate.id === input.teamId)
         let notifications = [...d.notifications]
         if (team) {
           const notification: Notification = {
@@ -872,16 +922,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const setApplicationStatus = (id: string, status: 'accepted' | 'rejected') => {
+      const application = db.applications.find((candidate) => candidate.id === id)
+      if (!application) return
+      const text =
+        status === 'accepted'
+          ? `🎉 Твою заявку в команду «${application.teamTitle}» приняли! Организатор ждёт тебя в команде.`
+          : `Твою заявку в команду «${application.teamTitle}» отклонили. Попробуй другие команды!`
+      if (firebaseEnabled) {
+        void setApplicationStatusFb(id, status)
+        addNotificationFb({
+          id: uid(),
+          userId: application.userId,
+          text,
+          read: false,
+          createdAt: new Date().toISOString(),
+        })
+        return
+      }
       mutate((d) => {
-        const application = d.applications.find((candidate) => candidate.id === id)
-        if (!application) return d
         const applications = d.applications.map((candidate) =>
           candidate.id === id ? { ...candidate, status } : candidate,
         )
-        const text =
-          status === 'accepted'
-            ? `🎉 Твою заявку в команду «${application.teamTitle}» приняли! Организатор ждёт тебя в команде.`
-            : `Твою заявку в команду «${application.teamTitle}» отклонили. Попробуй другие команды!`
         const notification: Notification = {
           id: uid(),
           userId: application.userId,
@@ -1046,6 +1107,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const markAllNotificationsRead = () => {
       if (!user) return
+      if (firebaseEnabled) {
+        void markNotificationsReadFb(user.id)
+        return
+      }
       mutate((d) => ({
         ...d,
         notifications: d.notifications.map((notification) =>

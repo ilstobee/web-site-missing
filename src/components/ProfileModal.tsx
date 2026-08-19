@@ -10,7 +10,7 @@ type Props = {
   onOpenChat(chatId: string): void
 }
 
-type Tab = 'profile' | 'applications' | 'incoming' | 'reviews' | 'history' | 'moderation'
+type Tab = 'profile' | 'teams' | 'applications' | 'incoming' | 'reviews' | 'history' | 'moderation'
 
 const roleLabel: Record<UserRole, string> = {
   organizer: 'Организатор',
@@ -85,6 +85,21 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     .filter((application) => application.userId === user.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
+  const myParticipations = db.applications
+    .filter((application) => application.userId === user.id && application.status === 'accepted')
+
+  const teamMembers = (teamId: string) =>
+    db.applications
+      .filter(
+        (application) => application.teamId === teamId && application.status === 'accepted',
+      )
+      .map((application) => ({
+        name: application.userName,
+        city: application.city,
+        telegram: application.telegram,
+        userId: application.userId,
+      }))
+
   const incoming = db.applications
     .filter((application) => myTeamIds.has(application.teamId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -144,6 +159,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: 'profile', label: 'Профиль' },
+    { id: 'teams', label: 'Команды', badge: myTeams.length },
     { id: 'applications', label: 'Мои заявки', badge: myApplications.length },
     { id: 'incoming', label: 'Входящие', badge: incoming.filter((a) => a.status === 'pending').length },
     { id: 'reviews', label: 'Отзывы', badge: mySphereReviews.length + myTeamReviews.length },
@@ -387,6 +403,126 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                   </span>
                 ) : null}
               </div>
+            </div>
+          ) : null}
+
+          {tab === 'teams' ? (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-extrabold text-ink">Мои команды</p>
+                  <span className="shrink-0 rounded-full bg-brand px-3 py-1 text-[12px] font-bold text-white">
+                    {myTeams.length}
+                  </span>
+                </div>
+                {myTeams.length === 0 ? (
+                  <p className="mt-3 rounded-2xl bg-cream p-5 text-center text-[13px] text-muted">
+                    Пока нет созданных команд. Создай команду в разделе «Создать команду».
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-4">
+                    {myTeams.map((team) => {
+                      const members = teamMembers(team.id)
+                      return (
+                        <article key={team.id} className="rounded-2xl bg-cream p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-extrabold text-ink">{team.title}</p>
+                              <p className="mt-0.5 text-[12px] text-muted">
+                                {team.category} · {team.city} · {team.difficulty}
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${
+                                team.status === 'approved'
+                                  ? 'bg-brand-soft text-brand'
+                                  : team.status === 'rejected'
+                                    ? 'bg-[#fde4df] text-brand'
+                                    : 'bg-white text-muted'
+                              }`}
+                            >
+                              {team.status === 'approved'
+                                ? 'Одобрена'
+                                : team.status === 'rejected'
+                                  ? 'Отклонена'
+                                  : 'На модерации'}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-[12px] font-extrabold text-ink">
+                            Участники ({members.length + 1})
+                          </p>
+                          <ul className="mt-2 space-y-1.5">
+                            <li className="flex items-center gap-2 rounded-xl bg-white px-3 py-2">
+                              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
+                                {user.name.slice(0, 1)}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                                {user.name} {user.surname}
+                              </span>
+                              <span className="shrink-0 text-[11px] font-bold text-brand">
+                                Создатель
+                              </span>
+                            </li>
+                            {members.map((member) => (
+                              <li key={member.userId} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2">
+                                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-soft text-[10px] font-bold text-brand">
+                                  {member.name.slice(0, 1)}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                                  {member.name}
+                                </span>
+                                <span className="hidden truncate text-[11px] text-muted sm:block">
+                                  {member.city}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenChat(dmChatId(user.id, member.userId))}
+                                  className="shrink-0 rounded-full border border-brand/30 px-2.5 py-1 text-[11px] font-semibold text-brand transition hover:bg-brand-soft"
+                                >
+                                  Написать
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {team.tags.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {team.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-muted"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </article>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {myParticipations.length > 0 ? (
+                <div>
+                  <p className="text-sm font-extrabold text-ink">Где я участник</p>
+                  <div className="mt-3 space-y-2">
+                    {myParticipations.map((participation) => (
+                      <div
+                        key={participation.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-cream px-4 py-3"
+                      >
+                        <p className="min-w-0 text-[13px] font-bold text-ink">
+                          {participation.teamTitle}
+                        </p>
+                        <span className="shrink-0 rounded-full bg-brand-soft px-3 py-1 text-[11px] font-bold text-brand">
+                          Принят
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
