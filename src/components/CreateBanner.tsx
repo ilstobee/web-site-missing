@@ -142,7 +142,7 @@ export function CreateBanner({ onOpenAuth }: Props) {
                   />
                 </label>
               </div>
-              <div className="flex items-center gap-3">
+              <div>
                 <input
                   ref={fileRef}
                   type="file"
@@ -150,20 +150,43 @@ export function CreateBanner({ onOpenAuth }: Props) {
                   className="hidden"
                   onChange={(event) => void pickImage(event.target.files?.[0])}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-white px-4 py-2 text-[13px] font-semibold text-ink transition hover:border-brand"
-                >
-                  {uploading ? 'Загружаю обложку…' : image ? 'Заменить обложку' : 'Добавить обложку'}
-                </button>
                 {image ? (
-                  <img
-                    src={image}
-                    alt="Обложка"
-                    className="h-10 w-16 rounded-lg object-cover"
-                  />
-                ) : null}
+                  <div className="relative overflow-hidden rounded-xl border border-brand/30">
+                    <img src={image} alt="Обложка команды" className="h-40 w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-ink/50 p-2">
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        className="rounded-full bg-white px-4 py-1.5 text-[12px] font-semibold text-ink transition hover:bg-cream"
+                      >
+                        {uploading ? 'Загружаю…' : 'Заменить фото'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImage('')}
+                        className="rounded-full border border-white/60 px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-white/20"
+                      >
+                        Убрать
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/40 bg-white/60 text-brand transition hover:border-brand hover:bg-white"
+                  >
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-soft text-xl font-bold">
+                      +
+                    </span>
+                    <span className="text-[13px] font-semibold">
+                      {uploading ? 'Загружаю обложку…' : 'Загрузить обложку карточки'}
+                    </span>
+                    <span className="text-[11px] font-medium text-muted">
+                      Фото, JPG или PNG — появится на карточке команды
+                    </span>
+                  </button>
+                )}
               </div>
               {firebaseEnabled ? (
                 <p className="text-[12px] text-muted">
