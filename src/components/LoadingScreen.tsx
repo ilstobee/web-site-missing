@@ -57,8 +57,8 @@ export function LoadingScreen({ onDone }: Props) {
     }
 
     window.addEventListener('load', ready)
-    minTimer = window.setTimeout(ready, 2000)
-    fallbackTimer = window.setTimeout(finish, 6000)
+    minTimer = window.setTimeout(ready, 5400)
+    fallbackTimer = window.setTimeout(finish, 8000)
 
     return () => {
       window.clearTimeout(fallbackTimer)
