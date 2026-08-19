@@ -19,6 +19,7 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [chatInitialId, setChatInitialId] = useState<string | undefined>(undefined)
   const [profileInitialTab, setProfileInitialTab] = useState<'profile' | 'applications'>('profile')
   const [activeSphere, setActiveSphere] = useState('travel')
   const [loading, setLoading] = useState(true)
@@ -41,7 +42,14 @@ export default function App() {
     setProfileOpen(true)
   }
   const closeProfile = () => setProfileOpen(false)
-  const openChat = () => setChatOpen(true)
+  const openChat = () => {
+    setChatInitialId(undefined)
+    setChatOpen(true)
+  }
+  const openSphereChat = (id: string) => {
+    setChatInitialId(id)
+    setChatOpen(true)
+  }
   const closeChat = () => setChatOpen(false)
 
   const handleSphereChange = (id: string) => {
@@ -89,6 +97,7 @@ export default function App() {
           activeId={activeSphere}
           onActiveChange={handleSphereChange}
           onOpenAuth={openAuth}
+          onOpenChat={openSphereChat}
         />
         <FeaturedTeams onOpenAuth={openAuth} />
         <CreateBanner onOpenAuth={openAuth} />
@@ -98,7 +107,7 @@ export default function App() {
       <Footer />
       <AuthModal open={authOpen} onClose={closeAuth} onSuccess={closeAuth} />
       <ProfileModal open={profileOpen} onClose={closeProfile} initialTab={profileInitialTab} />
-      <ChatModal open={chatOpen} onClose={closeChat} />
+      <ChatModal open={chatOpen} onClose={closeChat} initialChatId={chatInitialId} />
     </div>
   )
 }

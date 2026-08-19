@@ -8,6 +8,7 @@ type Props = {
   activeId: string
   onActiveChange(id: string): void
   onOpenAuth(): void
+  onOpenChat(id: string): void
 }
 
 function Stars({ value, onChange }: { value: number; onChange?: (next: number) => void }) {
@@ -31,7 +32,7 @@ function Stars({ value, onChange }: { value: number; onChange?: (next: number) =
   )
 }
 
-export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
+export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat }: Props) {
   const { allCategories, db, user, addReview, addCategory, sphereStats } = useApp()
   const [showAll, setShowAll] = useState(false)
   const [addCatOpen, setAddCatOpen] = useState(false)
@@ -169,6 +170,27 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth }: Props) {
                   <h3 className="text-[1.4rem] font-extrabold leading-tight text-ink">
                     {active.info.title}
                   </h3>
+                  <button
+                    type="button"
+                    onClick={() => onOpenChat(active.id)}
+                    className="ml-auto inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-bold text-ink shadow-sm transition hover:text-brand"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+                      <path
+                        d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h-.5A2.5 2.5 0 0 1 3 14.5v-8Z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M7.5 9h9M7.5 12.5h5"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Чат сферы
+                  </button>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-bold text-brand shadow-sm">
                     <span className="text-brand">★</span>
                     {activeStats.rating > 0 ? activeStats.rating.toFixed(1) : '—'}

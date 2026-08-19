@@ -145,7 +145,7 @@ type DB = {
   customTeams: CustomTeam[]
   pendingCategories: CustomCategory[]
   pendingTeams: CustomTeam[]
-  chat: ChatMessage[]
+  chats: Record<string, ChatMessage[]>
   visits: Visit[]
 }
 
@@ -213,7 +213,7 @@ type AppContextValue = {
   rejectTeam(id: string): void
   approveCategory(id: string): void
   rejectCategory(id: string): void
-  addChatMessage(text: string): void
+  addChatMessage(chatId: string, text: string): void
   recordVisit(sphereId: string): void
   markAllNotificationsRead(): void
   sphereStats(sphereId: string): { rating: number; reviews: number; activity: number }
@@ -233,7 +233,7 @@ const emptyDB: DB = {
   customTeams: [],
   pendingCategories: [],
   pendingTeams: [],
-  chat: [],
+  chats: {},
   visits: [],
 }
 
@@ -831,7 +831,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }))
     }
 
-    const addChatMessage = (text: string) => {
+    const addChatMessage = (chatId: string, text: string) => {
       const authorName = user ? `${user.name} ${user.surname}`.trim() : 'Гость'
       const message: ChatMessage = {
         id: uid(),
@@ -840,7 +840,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         text: censor(text),
         createdAt: new Date().toISOString(),
       }
-      mutate((d) => ({ ...d, chat: [...d.chat, message] }))
+      mutate((d) => ({
+        ...d,
+        chats: { ...d.chats, [chatId]: [...(d.chats[chatId] ?? []), message] },
+      }))
     }
 
     const recordVisit = (sphereId: string) => {
