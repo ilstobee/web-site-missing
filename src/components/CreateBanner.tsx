@@ -21,6 +21,7 @@ export function CreateBanner({ onOpenAuth }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [done, setDone] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const selected = allCategories.find((category) => category.id === sphereId)
@@ -60,7 +61,7 @@ export function CreateBanner({ onOpenAuth }: Props) {
         cover = ''
       }
     }
-    addTeam({
+    const err = await addTeam({
       title: title.trim(),
       category: selected.name,
       sphereId: selected.id,
@@ -71,6 +72,12 @@ export function CreateBanner({ onOpenAuth }: Props) {
       tags: [selected.name],
       image: cover || undefined,
     })
+    setUploading(false)
+    if (err) {
+      setSubmitError(err)
+      return
+    }
+    setSubmitError(null)
     clearImage()
     setTitle('')
     setDescription('')
@@ -217,6 +224,11 @@ export function CreateBanner({ onOpenAuth }: Props) {
               {firebaseEnabled ? (
                 <p className="text-[12px] text-muted">
                   Команда появится в ленте после одобрения администратором.
+                </p>
+              ) : null}
+              {submitError ? (
+                <p className="rounded-xl bg-brand-soft px-4 py-2.5 text-[12px] font-semibold text-brand">
+                  Не удалось создать команду: {submitError}
                 </p>
               ) : null}
               <button

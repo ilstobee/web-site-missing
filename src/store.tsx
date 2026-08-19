@@ -219,7 +219,7 @@ type AppContextValue = {
   addApplication(input: NewApplication): void
   setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
   addCategory(name: string): Promise<string | null>
-  addTeam(input: NewTeam): void
+  addTeam(input: NewTeam): Promise<string | null>
   approveTeam(id: string): void
   rejectTeam(id: string): void
   approveCategory(id: string): void
@@ -918,8 +918,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return category.id
     }
 
-    const addTeam = (input: NewTeam) => {
-      if (!user) return
+    const addTeam = async (input: NewTeam): Promise<string | null> => {
+      if (!user) return 'Сначала войди в аккаунт'
+      const isFbUser = user.id.startsWith('fb-')
       const team: CustomTeam = {
         id: uid(),
         ...input,
@@ -927,16 +928,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         creatorId: user.id,
         creatorName: `${user.name} ${user.surname}`.trim(),
         createdAt: new Date().toISOString(),
-        status: firebaseEnabled ? 'pending' : 'approved',
+        status: firebaseEnabled && isFbUser ? 'pending' : 'approved',
       }
-      if (firebaseEnabled) {
-        void addTeamFb(team)
-        return
+      if (firebaseEnabled && isFbUser) {
+        try {
+          await addTeamFb(team)
+          return null
+        } catch (error) {
+          return fbErrorMessage(error)
+        }
       }
       mutate((d) => ({
         ...d,
         customTeams: [team, ...d.customTeams],
       }))
+      return null
     }
 
     const approveTeam = (id: string) => {
