@@ -27,7 +27,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
   const initials = user ? `${user.name[0] ?? ''}${user.surname[0] ?? ''}`.toUpperCase() : ''
 
   return (
-    <header className="relative z-20">
+    <header className="relative z-50">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
         <a href="#top" className="shrink-0" aria-label="На главную">
           <Logo />
