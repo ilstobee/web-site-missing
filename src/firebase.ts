@@ -33,7 +33,10 @@ import {
   where,
   getDocs,
   writeBatch,
+  deleteDoc,
   type Firestore,
+  type DocumentData,
+  type QuerySnapshot,
 } from 'firebase/firestore'
 import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage'
 import type {
@@ -185,6 +188,19 @@ export async function saveUserProfileFb(uid: string, profile: ProfilePatch): Pro
   await setDoc(doc(db, 'users', uid), buildPatch(profile), { merge: true })
 }
 
+function onSnapshotSafe(
+  q: ReturnType<typeof query>,
+  callback: (snapshot: QuerySnapshot<DocumentData>) => void,
+): () => void {
+  return onSnapshot(
+    q,
+    (snapshot) => callback(snapshot),
+    (error) => {
+      console.error('[missing] Firestore подписка не работает:', error)
+    },
+  )
+}
+
 export function subscribeTeamsFb(callback: (teams: CustomTeam[]) => void): () => void {
   if (!db) return () => {}
   const q = query(
@@ -192,7 +208,7 @@ export function subscribeTeamsFb(callback: (teams: CustomTeam[]) => void): () =>
     where('status', '==', 'approved'),
     orderBy('createdAt', 'desc'),
   )
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshotSafe(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomTeam),
     )
@@ -206,7 +222,7 @@ export function subscribeCategoriesFb(callback: (categories: CustomCategory[]) =
     where('status', '==', 'approved'),
     orderBy('createdAt', 'asc'),
   )
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshotSafe(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomCategory),
     )
@@ -220,7 +236,7 @@ export function subscribePendingTeamsFb(callback: (teams: CustomTeam[]) => void)
     where('status', '==', 'pending'),
     orderBy('createdAt', 'desc'),
   )
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshotSafe(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomTeam),
     )
@@ -236,7 +252,7 @@ export function subscribePendingCategoriesFb(
     where('status', '==', 'pending'),
     orderBy('createdAt', 'asc'),
   )
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshotSafe(q, (snapshot) => {
     callback(
       snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CustomCategory),
     )
@@ -246,6 +262,11 @@ export function subscribePendingCategoriesFb(
 export async function setTeamStatusFb(id: string, status: ModerationStatus): Promise<void> {
   if (!db) return
   await updateDoc(doc(db, 'teams', id), { status })
+}
+
+export async function updateTeamMembersFb(id: string, members: number): Promise<void> {
+  if (!db) return
+  await updateDoc(doc(db, 'teams', id), { members })
 }
 
 export async function setCategoryStatusFb(id: string, status: ModerationStatus): Promise<void> {
@@ -351,6 +372,20 @@ export function sendMessageFb(chatId: string, message: ChatMessage): void {
   })
 }
 
+export function editMessageFb(chatId: string, messageId: string, text: string): void {
+  if (!db) return
+  void updateDoc(doc(db, 'chats', chatId, 'messages', messageId), {
+    text,
+    edited: true,
+    editedAt: new Date().toISOString(),
+  })
+}
+
+export function deleteMessageFb(chatId: string, messageId: string): void {
+  if (!db) return
+  void deleteDoc(doc(db, 'chats', chatId, 'messages', messageId))
+}
+
 export function subscribeChatMessagesFb(
   chatId: string,
   callback: (messages: ChatMessage[]) => void,
@@ -360,20 +395,28 @@ export function subscribeChatMessagesFb(
     collection(db, 'chats', chatId, 'messages'),
     orderBy('createdAt', 'asc'),
   )
-  return onSnapshot(q, (snapshot) => {
-    callback(
-      snapshot.docs.map((docSnap) => {
-        const data = docSnap.data()
-        return {
-          id: docSnap.id,
-          userId: data.authorId ?? '',
-          authorName: data.authorName ?? 'Пользователь',
-          text: data.text ?? '',
-          createdAt: data.createdAt ?? new Date().toISOString(),
-        }
-      }),
-    )
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(
+        snapshot.docs.map((docSnap) => {
+          const data = docSnap.data()
+          return {
+            id: docSnap.id,
+            userId: data.authorId ?? '',
+            authorName: data.authorName ?? 'Пользователь',
+            text: data.text ?? '',
+            createdAt: data.createdAt ?? new Date().toISOString(),
+            edited: data.edited === true,
+            editedAt: data.editedAt ?? undefined,
+          }
+        }),
+      )
+    },
+    (error) => {
+      console.error('[missing] Чат недоступен:', error)
+    },
+  )
 }
 
 export function subscribeParticipantChatsFb(
@@ -382,9 +425,15 @@ export function subscribeParticipantChatsFb(
 ): () => void {
   if (!db) return () => {}
   const q = query(collection(db, 'chats'), where('participants', 'array-contains', userId))
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map((docSnap) => docSnap.id))
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map((docSnap) => docSnap.id))
+    },
+    (error) => {
+      console.error('[missing] Чаты недоступны:', error)
+    },
+  )
 }
 
 function sanitize(data: Record<string, unknown>): Record<string, unknown> {
@@ -418,22 +467,28 @@ export function subscribeApplicationsFb(
     )
   }
   const attach = (q: ReturnType<typeof query>) =>
-    onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'removed') {
-          buffer.delete(change.doc.id)
-        } else {
-          buffer.set(
-            change.doc.id,
-            {
-              id: change.doc.id,
-              ...(change.doc.data() as Record<string, unknown>),
-            } as Application,
-          )
-        }
-      })
-      emit()
-    })
+    onSnapshot(
+      q,
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            buffer.delete(change.doc.id)
+          } else {
+            buffer.set(
+              change.doc.id,
+              {
+                id: change.doc.id,
+                ...(change.doc.data() as Record<string, unknown>),
+              } as Application,
+            )
+          }
+        })
+        emit()
+      },
+      (error) => {
+        console.error('[missing] Заявки недоступны:', error)
+      },
+    )
   const unsubs: (() => void)[] = []
   unsubs.push(
     attach(
@@ -474,9 +529,19 @@ export function subscribeNotificationsFb(
     where('userId', '==', userId),
     orderBy('createdAt', 'desc'),
   )
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Notification))
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(
+        snapshot.docs.map(
+          (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Notification,
+        ),
+      )
+    },
+    (error) => {
+      console.error('[missing] Уведомления недоступны:', error)
+    },
+  )
 }
 
 export async function markNotificationsReadFb(userId: string): Promise<void> {

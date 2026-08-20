@@ -31,10 +31,12 @@ function initialsOf(name: string): string {
 }
 
 export function ChatModal({ open, onClose, initialChatId }: Props) {
-  const { db, user, allCategories, addChatMessage, chatRead, markChatRead, setActiveChatId } =
+  const { db, user, allCategories, addChatMessage, editChatMessage, deleteChatMessage, chatRead, markChatRead, setActiveChatId } =
     useApp()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [text, setText] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const [folder, setFolder] = useState<'all' | 'sphere' | 'team' | 'dm'>('all')
   const [search, setSearch] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
@@ -313,6 +315,32 @@ const active = selectedId ? resolveChat(selectedId) : null
     setText('')
   }
 
+  const startEdit = (message: ChatMessage) => {
+    setEditingId(message.id)
+    setEditText(message.text)
+  }
+
+  const saveEdit = (message: ChatMessage) => {
+    if (!active || !editingId) return
+    if (editText.trim() && editText.trim() !== message.text) {
+      editChatMessage(active.id, message.id, editText)
+    }
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const confirmDelete = (message: ChatMessage) => {
+    if (!active) return
+    if (window.confirm('Удалить это сообщение?')) {
+      deleteChatMessage(active.id, message.id)
+    }
+  }
+
   const fmtTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
@@ -500,6 +528,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                     const mine = message.userId
                       ? message.userId === (user?.id ?? 'guest')
                       : message.authorName === myName
+                    const isEditing = editingId === message.id
                     return (
                       <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                         <div
@@ -516,16 +545,70 @@ const active = selectedId ? resolveChat(selectedId) : null
                           >
                             {messageAuthorName(message)}
                           </div>
-                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                            {message.text}
-                          </p>
-                          <div
-                            className={`mt-1 text-right text-[10px] ${
-                              mine ? 'text-white/70' : 'text-muted'
-                            }`}
-                          >
-                            {fmtTime(message.createdAt)}
-                          </div>
+                          {isEditing ? (
+                            <div className="mt-1">
+                              <input
+                                autoFocus
+                                value={editText}
+                                onChange={(event) => setEditText(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') saveEdit(message)
+                                  if (event.key === 'Escape') cancelEdit()
+                                }}
+                                className="w-full rounded-lg border border-ink/10 bg-white px-3 py-1.5 text-sm text-ink outline-none"
+                              />
+                              <div className="mt-1.5 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => saveEdit(message)}
+                                  className="rounded-full bg-brand px-3 py-1 text-[11px] font-semibold text-white"
+                                >
+                                  Сохранить
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  className="rounded-full border border-ink/10 px-3 py-1 text-[11px] font-semibold text-muted"
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                                {message.text}
+                              </p>
+                              <div
+                                className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
+                                  mine ? 'text-white/70' : 'text-muted'
+                                }`}
+                              >
+                                <span>
+                                  {fmtTime(message.createdAt)}
+                                  {message.edited ? ' · изменено' : ''}
+                                </span>
+                                {mine ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => startEdit(message)}
+                                      className="underline"
+                                    >
+                                      Изменить
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => confirmDelete(message)}
+                                      className="underline"
+                                    >
+                                      Удалить
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     )

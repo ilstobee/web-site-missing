@@ -36,6 +36,9 @@ import {
   addNotificationFb,
   subscribeNotificationsFb,
   markNotificationsReadFb,
+  updateTeamMembersFb,
+  editMessageFb,
+  deleteMessageFb,
 } from './firebase'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
@@ -142,6 +145,8 @@ export type ChatMessage = {
   authorName: string
   text: string
   createdAt: string
+  edited?: boolean
+  editedAt?: string
 }
 
 export type Visit = {
@@ -232,6 +237,8 @@ type AppContextValue = {
   approveCategory(id: string): void
   rejectCategory(id: string): void
   addChatMessage(chatId: string, text: string): void
+  editChatMessage(chatId: string, messageId: string, text: string): void
+  deleteChatMessage(chatId: string, messageId: string): void
   recordVisit(sphereId: string): void
   markAllNotificationsRead(): void
   markChatRead(chatId: string): void
@@ -462,11 +469,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeChatRef = useRef<string | null>(null)
 
   const myTeamIds = useMemo(
-    () =>
-      db.customTeams
+    () => [
+      ...db.customTeams
         .filter((team) => team.creatorId === (user?.id ?? ''))
         .map((team) => team.id),
-    [db.customTeams, user?.id],
+      ...db.pendingTeams
+        .filter((team) => team.creatorId === (user?.id ?? ''))
+        .map((team) => team.id),
+    ],
+    [db.customTeams, db.pendingTeams, user?.id],
   )
 
   useEffect(() => {
@@ -928,30 +939,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status === 'accepted'
           ? `🎉 Твою заявку в команду «${application.teamTitle}» приняли! Организатор ждёт тебя в команде.`
           : `Твою заявку в команду «${application.teamTitle}» отклонили. Попробуй другие команды!`
+      const nextApplications = db.applications.map((candidate) =>
+        candidate.id === id ? { ...candidate, status } : candidate,
+      )
+      const members =
+        1 +
+        nextApplications.filter(
+          (candidate) =>
+            candidate.teamId === application.teamId && candidate.status === 'accepted',
+        ).length
+      const notification: Notification = {
+        id: uid(),
+        userId: application.userId,
+        text,
+        read: false,
+        createdAt: new Date().toISOString(),
+      }
+      const applyTeamMembers = (d: DB): DB => ({
+        ...d,
+        customTeams: d.customTeams.map((team) =>
+          team.id === application.teamId ? { ...team, members } : team,
+        ),
+        pendingTeams: d.pendingTeams.map((team) =>
+          team.id === application.teamId ? { ...team, members } : team,
+        ),
+      })
       if (firebaseEnabled) {
         void setApplicationStatusFb(id, status)
-        addNotificationFb({
-          id: uid(),
-          userId: application.userId,
-          text,
-          read: false,
-          createdAt: new Date().toISOString(),
-        })
+        void updateTeamMembersFb(application.teamId, members)
+        addNotificationFb(notification)
+        mutate((d) => ({ ...applyTeamMembers(d), applications: nextApplications }))
         return
       }
-      mutate((d) => {
-        const applications = d.applications.map((candidate) =>
-          candidate.id === id ? { ...candidate, status } : candidate,
-        )
-        const notification: Notification = {
-          id: uid(),
-          userId: application.userId,
-          text,
-          read: false,
-          createdAt: new Date().toISOString(),
-        }
-        return { ...d, applications, notifications: [notification, ...d.notifications] }
-      })
+      mutate((d) => ({
+        ...applyTeamMembers(d),
+        applications: nextApplications,
+        notifications: [notification, ...d.notifications],
+      }))
     }
 
     const addCategory = async (name: string): Promise<string | null> => {
@@ -1092,6 +1116,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const editChatMessage = (chatId: string, messageId: string, text: string) => {
+      const value = censor(text.trim())
+      if (!value) return
+      const now = new Date().toISOString()
+      mutate((d) => ({
+        ...d,
+        chats: {
+          ...d.chats,
+          [chatId]: (d.chats[chatId] ?? []).map((message) =>
+            message.id === messageId
+              ? { ...message, text: value, edited: true, editedAt: now }
+              : message,
+          ),
+        },
+      }))
+      if (firebaseEnabled) {
+        editMessageFb(chatId, messageId, value)
+      }
+    }
+
+    const deleteChatMessage = (chatId: string, messageId: string) => {
+      mutate((d) => ({
+        ...d,
+        chats: {
+          ...d.chats,
+          [chatId]: (d.chats[chatId] ?? []).filter((message) => message.id !== messageId),
+        },
+      }))
+      if (firebaseEnabled) {
+        deleteMessageFb(chatId, messageId)
+      }
+    }
+
     const recordVisit = (sphereId: string) => {
       if (!user) return
       mutate((d) => {
@@ -1173,6 +1230,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       approveCategory,
       rejectCategory,
       addChatMessage,
+      editChatMessage,
+      deleteChatMessage,
       recordVisit,
       markAllNotificationsRead,
       markChatRead,

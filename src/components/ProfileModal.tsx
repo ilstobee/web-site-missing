@@ -78,7 +78,10 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   if (!open) return null
   if (!user) return null
 
-  const myTeams = db.customTeams.filter((team) => team.creatorId === user.id)
+  const myTeams = [
+    ...db.pendingTeams.filter((team) => team.creatorId === user.id),
+    ...db.customTeams.filter((team) => team.creatorId === user.id),
+  ]
   const myTeamIds = new Set(myTeams.map((team) => team.id))
 
   const myApplications = db.applications
