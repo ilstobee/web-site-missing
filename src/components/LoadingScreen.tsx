@@ -76,10 +76,10 @@ export function LoadingScreen({ onDone }: Props) {
   }, [])
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-white">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black">
       <div
         data-boot-spinner
-        className="absolute h-16 w-16 rounded-full border-[5px] border-[#fde7ea] border-t-[#f7566d]"
+        className="absolute h-16 w-16 rounded-full border-[5px] border-[rgba(247,86,109,0.25)] border-t-[#f7566d]"
         style={{ animation: 'boot-spin 0.9s linear infinite' }}
       />
       <div ref={containerRef} className="relative w-full max-w-xl" />
