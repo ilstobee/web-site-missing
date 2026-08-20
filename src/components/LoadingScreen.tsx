@@ -47,7 +47,7 @@ export function LoadingScreen({ onDone }: Props) {
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: `${import.meta.env.BASE_URL}loading.json?v=3`,
+        path: `${import.meta.env.BASE_URL}loading.json?v=4`,
       })
       if (anim) {
         anim.addEventListener('DOMLoaded', () => {
