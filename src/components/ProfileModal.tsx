@@ -94,11 +94,17 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
         (application) => application.teamId === teamId && application.status === 'accepted',
       )
       .map((application) => ({
+        applicationId: application.id,
         name: application.userName,
         city: application.city,
         telegram: application.telegram,
         userId: application.userId,
       }))
+
+  const teamPendingApplications = (teamId: string) =>
+    db.applications
+      .filter((application) => application.teamId === teamId && application.status === 'pending')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const incoming = db.applications
     .filter((application) => myTeamIds.has(application.teamId))
@@ -408,13 +414,19 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
 
           {tab === 'teams' ? (
             <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-extrabold text-ink">Мои команды</p>
-                  <span className="shrink-0 rounded-full bg-brand px-3 py-1 text-[12px] font-bold text-white">
-                    {myTeams.length}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-brand px-3 py-1 text-[12px] font-bold text-white">
+                  Всего команд: {myTeams.length}
+                </span>
+                {myParticipations.length > 0 ? (
+                  <span className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand">
+                    Участник в {myParticipations.length} командах
                   </span>
-                </div>
+                ) : null}
+              </div>
+
+              <div>
+                <p className="text-sm font-extrabold text-ink">Мои команды</p>
                 {myTeams.length === 0 ? (
                   <p className="mt-3 rounded-2xl bg-cream p-5 text-center text-[13px] text-muted">
                     Пока нет созданных команд. Создай команду в разделе «Создать команду».
@@ -449,7 +461,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                             </span>
                           </div>
                           <p className="mt-3 text-[12px] font-extrabold text-ink">
-                            Участники ({members.length + 1})
+                            Участники ({members.length + 1}/{team.capacity})
                           </p>
                           <ul className="mt-2 space-y-1.5">
                             <li className="flex items-center gap-2 rounded-xl bg-white px-3 py-2">
@@ -481,9 +493,73 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                                 >
                                   Написать
                                 </button>
+                                {member.applicationId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setApplicationStatus(member.applicationId, 'rejected')}
+                                    className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-[#fde4df] hover:text-brand"
+                                    title="Исключить из команды"
+                                  >
+                                    Исключить
+                                  </button>
+                                ) : null}
                               </li>
                             ))}
                           </ul>
+
+                          {(() => {
+                            const pending = teamPendingApplications(team.id)
+                            if (pending.length === 0) return null
+                            return (
+                              <div className="mt-3">
+                                <p className="text-[12px] font-extrabold text-ink">
+                                  Заявки на вступление ({pending.length})
+                                </p>
+                                <div className="mt-2 space-y-2">
+                                  {pending.map((application) => (
+                                    <div
+                                      key={application.id}
+                                      className="rounded-xl bg-white p-3"
+                                    >
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <p className="text-[13px] font-bold text-ink">
+                                            {application.userName}
+                                          </p>
+                                          <p className="mt-0.5 text-[11px] text-muted">
+                                            {application.city}
+                                            {application.telegram ? ` · ${application.telegram}` : ''}
+                                            {application.rating ? ` · Рейтинг ${application.rating}/5` : ''}
+                                          </p>
+                                          {application.review ? (
+                                            <p className="mt-0.5 text-[11px] leading-snug text-muted">
+                                              {application.review}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                        <div className="flex shrink-0 gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setApplicationStatus(application.id, 'accepted')}
+                                            className="rounded-full bg-brand px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-dark"
+                                          >
+                                            Одобрить
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setApplicationStatus(application.id, 'rejected')}
+                                            className="rounded-full border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand transition hover:bg-brand-soft"
+                                          >
+                                            Отклонить
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })()}
                           {team.tags.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                               {team.tags.map((tag) => (
