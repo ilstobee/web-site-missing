@@ -1099,10 +1099,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dbRef.current.pendingTeams.find((candidate) => candidate.id === id)
       if (!target) return
       if (!user.isAdmin && target.creatorId !== user.id) return
-      if (firebaseEnabled) {
-        void deleteTeamFb(id)
-        return
-      }
       mutate((d) => ({
         ...d,
         customTeams: d.customTeams.filter((candidate) => candidate.id !== id),
@@ -1113,6 +1109,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           Object.entries(d.chats).filter(([chatId]) => chatId !== `team:${id}`),
         ),
       }))
+      if (firebaseEnabled) {
+        deleteTeamFb(id).catch((error) => {
+          console.error('[missing] Не удалось удалить команду:', error)
+          window.alert('Не удалось удалить команду. Проверь правила доступа в Firebase.')
+        })
+      }
     }
 
     const deleteCategory = (id: string) => {
@@ -1122,10 +1124,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dbRef.current.pendingCategories.find((candidate) => candidate.id === id)
       if (!target) return
       if (!user.isAdmin && target.creatorId !== user.id) return
-      if (firebaseEnabled) {
-        void deleteCategoryFb(id)
-        return
-      }
       const removedTeamIds = new Set(
         dbRef.current.customTeams
           .concat(dbRef.current.pendingTeams)
@@ -1157,6 +1155,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ),
         ),
       }))
+      if (firebaseEnabled) {
+        deleteCategoryFb(id).catch((error) => {
+          console.error('[missing] Не удалось удалить сферу:', error)
+          window.alert('Не удалось удалить сферу. Проверь правила доступа в Firebase.')
+        })
+      }
     }
 
     const addChatMessage = (chatId: string, text: string) => {

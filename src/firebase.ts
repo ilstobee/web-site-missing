@@ -281,31 +281,57 @@ async function deleteChatFb(chatId: string): Promise<void> {
 
 export async function deleteTeamFb(id: string): Promise<void> {
   if (!db) return
-  const batch = writeBatch(db)
-  batch.delete(doc(db, 'teams', id))
-  const applications = await getDocs(
-    query(collection(db, 'applications'), where('teamId', '==', id)),
-  )
-  applications.docs.forEach((docSnap) => batch.delete(docSnap.ref))
-  await batch.commit()
-  await deleteChatFb(`team:${id}`)
+  await deleteDoc(doc(db, 'teams', id))
+  try {
+    const applications = await getDocs(
+      query(collection(db, 'applications'), where('teamId', '==', id)),
+    )
+    const batch = writeBatch(db)
+    applications.docs.forEach((docSnap) => batch.delete(docSnap.ref))
+    await batch.commit()
+  } catch (error) {
+    console.error('[missing] Не удалось удалить заявки команды:', error)
+  }
+  try {
+    await deleteChatFb(`team:${id}`)
+  } catch (error) {
+    console.error('[missing] Не удалось удалить чат команды:', error)
+  }
 }
 
 export async function deleteCategoryFb(id: string): Promise<void> {
   if (!db) return
-  const batch = writeBatch(db)
-  batch.delete(doc(db, 'categories', id))
-  const teams = await getDocs(query(collection(db, 'teams'), where('sphereId', '==', id)))
-  for (const team of teams.docs) {
-    batch.delete(team.ref)
-    const applications = await getDocs(
-      query(collection(db, 'applications'), where('teamId', '==', team.id)),
-    )
-    applications.docs.forEach((docSnap) => batch.delete(docSnap.ref))
+  await deleteDoc(doc(db, 'categories', id))
+  try {
+    const teams = await getDocs(query(collection(db, 'teams'), where('sphereId', '==', id)))
+    for (const team of teams.docs) {
+      try {
+        await deleteDoc(team.ref)
+      } catch (error) {
+        console.error('[missing] Не удалось удалить команду сферы:', error)
+      }
+      try {
+        const applications = await getDocs(
+          query(collection(db, 'applications'), where('teamId', '==', team.id)),
+        )
+        for (const application of applications.docs) await deleteDoc(application.ref)
+      } catch (error) {
+        console.error('[missing] Не удалось удалить заявки команды сферы:', error)
+      }
+      try {
+        await deleteChatFb(`team:${team.id}`)
+      } catch (error) {
+        console.error('[missing] Не удалось удалить чат команды сферы:', error)
+      }
+    }
+  } catch (error) {
+    console.error('[missing] Не удалось удалить команды сферы:', error)
   }
-  await batch.commit()
-  await deleteChatFb(id)
-  for (const team of teams.docs) await deleteChatFb(`team:${team.id}`)
+  try {
+    await deleteChatFb(id)
+  } catch (error) {
+    console.error('[missing] Не удалось удалить чат сферы:', error)
+  }
 }
 
 export async function setCategoryStatusFb(id: string, status: ModerationStatus): Promise<void> {
