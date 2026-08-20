@@ -35,6 +35,7 @@ import {
   writeBatch,
   deleteDoc,
   type Firestore,
+  type Query,
   type DocumentData,
   type QuerySnapshot,
 } from 'firebase/firestore'
@@ -189,7 +190,7 @@ export async function saveUserProfileFb(uid: string, profile: ProfilePatch): Pro
 }
 
 function onSnapshotSafe(
-  q: ReturnType<typeof query>,
+  q: Query<DocumentData>,
   callback: (snapshot: QuerySnapshot<DocumentData>) => void,
 ): () => void {
   return onSnapshot(
