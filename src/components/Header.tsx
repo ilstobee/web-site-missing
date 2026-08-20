@@ -173,7 +173,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncomin
             ) : null}
           </div>
 
-          {user ? (
+          {user && user.role === 'organizer' ? (
             <button
               type="button"
               onClick={onOpenIncoming}

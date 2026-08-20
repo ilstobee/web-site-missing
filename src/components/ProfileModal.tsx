@@ -172,10 +172,17 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     { id: 'profile', label: 'Профиль' },
     { id: 'teams', label: 'Команды', badge: myTeams.length },
     { id: 'applications', label: 'Мои заявки', badge: myApplications.length },
-    { id: 'incoming', label: 'Входящие', badge: incoming.filter((a) => a.status === 'pending').length },
     { id: 'reviews', label: 'Отзывы', badge: mySphereReviews.length + myTeamReviews.length },
     { id: 'history', label: 'История сфер', badge: myVisits.length },
   ]
+
+  if (user.role === 'organizer') {
+    tabs.push({
+      id: 'incoming',
+      label: 'Входящие',
+      badge: incoming.filter((a) => a.status === 'pending').length,
+    })
+  }
 
   if (user.isAdmin) {
     tabs.push({ id: 'moderation', label: 'Модерация', badge: db.pendingTeams.length + db.pendingCategories.length })
@@ -679,7 +686,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
             </div>
           ) : null}
 
-          {tab === 'incoming' ? (
+          {tab === 'incoming' && user.role === 'organizer' ? (
             <div>
               <p className="text-sm font-extrabold text-ink">Входящие заявки на твои команды</p>
               {incoming.length === 0 ? (
