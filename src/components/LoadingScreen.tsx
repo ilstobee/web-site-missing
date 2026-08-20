@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import lottie from 'lottie-web'
 import type { AnimationItem } from 'lottie-web'
 
@@ -10,6 +10,9 @@ export function LoadingScreen({ onDone }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const doneRef = useRef(onDone)
   doneRef.current = onDone
+  const [dark] = useState(
+    () => typeof window !== 'undefined' && document.documentElement.classList.contains('dark'),
+  )
 
   useEffect(() => {
     document.getElementById('boot-splash')?.remove()
@@ -47,7 +50,7 @@ export function LoadingScreen({ onDone }: Props) {
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: `${import.meta.env.BASE_URL}loading.json?v=5`,
+        path: `${import.meta.env.BASE_URL}${dark ? 'loading-dark.json' : 'loading-light.json'}`,
       })
       if (anim) {
         anim.addEventListener('DOMLoaded', () => {
@@ -73,13 +76,15 @@ export function LoadingScreen({ onDone }: Props) {
         anim = null
       }
     }
-  }, [])
+  }, [dark])
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-black">
+    <div className={`fixed inset-0 z-[100] grid place-items-center ${dark ? 'bg-black' : 'bg-white'}`}>
       <div
         data-boot-spinner
-        className="absolute h-16 w-16 rounded-full border-[5px] border-[rgba(247,86,109,0.25)] border-t-[#f7566d]"
+        className={`absolute h-16 w-16 rounded-full border-[5px] ${
+          dark ? 'border-[rgba(247,86,109,0.25)]' : 'border-[#fde7ea]'
+        } border-t-[#f7566d]`}
         style={{ animation: 'boot-spin 0.9s linear infinite' }}
       />
       <div ref={containerRef} className="relative w-full max-w-xl" />

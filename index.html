@@ -15,6 +15,13 @@
       rel="stylesheet"
     />
     <title>missing! — найди себя, найди команду</title>
+    <script>
+      try {
+        if (localStorage.getItem('missing_theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="boot-splash" aria-hidden="true">
@@ -25,15 +32,19 @@
           z-index: 2147483000;
           display: grid;
           place-items: center;
-          background: #000;
+          background: var(--splash-bg, #fff);
         }
         #boot-splash .boot-spinner {
           width: 64px;
           height: 64px;
           border-radius: 9999px;
-          border: 5px solid rgba(247, 86, 109, 0.25);
+          border: 5px solid var(--splash-ring, #fde7ea);
           border-top-color: #f7566d;
           animation: boot-spin 0.9s linear infinite;
+        }
+        html.dark {
+          --splash-bg: #000;
+          --splash-ring: rgba(247, 86, 109, 0.25);
         }
         @keyframes boot-spin {
           to {
