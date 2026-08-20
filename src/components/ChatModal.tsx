@@ -17,6 +17,8 @@ type ChatRef = {
   icon?: string
   subtitle: string
   creatorId?: string
+  memberCount?: number
+  capacity?: number
 }
 
 const FALLBACK_IMAGE = asset('images/teams/team-startup.png')
@@ -131,15 +133,33 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     }
   }, [peerIds])
 
+  const teamParticipants = (teamId: string) => {
+    const team =
+      db.customTeams.find((candidate) => candidate.id === teamId) ??
+      db.pendingTeams.find((candidate) => candidate.id === teamId)
+    if (!team) return null
+    const names: string[] = [team.creatorName || 'Создатель']
+    db.applications
+      .filter(
+        (application) => application.teamId === teamId && application.status === 'accepted',
+      )
+      .forEach((application) => {
+        if (!names.includes(application.userName)) names.push(application.userName)
+      })
+    return { names, count: names.length, capacity: team.capacity }
+  }
+
   const resolvePeerName = (peerId: string): string => {
     const peer = db.users.find((candidate) => candidate.id === peerId)
     if (peer && (peer.name || peer.surname)) return `${peer.name} ${peer.surname}`.trim()
     const cached = peerNames[peerId]
     if (cached) return cached
-    const team = db.customTeams.find((candidate) => candidate.creatorId === peerId)
-    if (team) return team.creatorName
+    const team = [...db.customTeams, ...db.pendingTeams].find(
+      (candidate) => candidate.creatorId === peerId,
+    )
+    if (team && team.creatorName) return team.creatorName
     const application = db.applications.find((candidate) => candidate.userId === peerId)
-    if (application) return application.userName
+    if (application && application.userName) return application.userName
     return 'Пользователь'
   }
 
@@ -147,13 +167,17 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     if (id.startsWith('team:')) {
       const team = db.customTeams.find((candidate) => candidate.id === id.slice(5))
       if (team) {
+        const participants = teamParticipants(team.id)
+        const count = participants ? participants.count : team.members
         return {
           id,
           kind: 'team',
           name: team.title,
           icon: team.image || FALLBACK_IMAGE,
-          subtitle: `${team.category} · ${team.city}`,
+          subtitle: `${team.category} · ${team.city} · ${count} участн.`,
           creatorId: team.creatorId,
+          memberCount: count,
+          capacity: participants ? participants.capacity : team.capacity,
         }
       }
       return null
@@ -514,6 +538,29 @@ const active = selectedId ? resolveChat(selectedId) : null
                   <p className="text-sm font-extrabold text-ink">Чат</p>
                 )}
               </div>
+
+              {active.kind === 'team' && active.memberCount !== undefined ? (
+                <div className="border-b border-cream bg-white/80 px-4 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted">
+                      Участники · {active.memberCount} из {active.capacity ?? '—'}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {teamParticipants(active.id.slice(5))?.names.map((name, index) => (
+                      <span
+                        key={`${name}-${index}`}
+                        className="flex items-center gap-1.5 rounded-full bg-blush px-2.5 py-1 text-[11px] font-semibold text-ink"
+                      >
+                        <span className="grid h-4 w-4 place-items-center rounded-full bg-brand text-[8px] font-bold text-white">
+                          {initialsOf(name)}
+                        </span>
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div
                 ref={listRef}
