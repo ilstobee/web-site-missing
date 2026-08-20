@@ -83,18 +83,34 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
 
   const peerIds = useMemo(() => {
     const ids = new Set<string>()
+    if (!user) return Array.from(ids)
     for (const key of Object.keys(db.chats)) {
       if (key.startsWith('dm:')) {
         key
           .slice(3)
           .split(':')
           .forEach((id) => {
-            if (id !== user?.id) ids.add(id)
+            if (id !== user.id) ids.add(id)
           })
       }
     }
+    db.applications
+      .filter((application) => application.userId === user.id)
+      .forEach((application) => {
+        const team = db.customTeams.find((candidate) => candidate.id === application.teamId)
+        if (team && team.creatorId !== user.id) ids.add(team.creatorId)
+      })
+    const myTeamIds = new Set(
+      db.customTeams.filter((team) => team.creatorId === user.id).map((team) => team.id),
+    )
+    db.applications
+      .filter((application) => myTeamIds.has(application.teamId) && application.userId !== user.id)
+      .forEach((application) => ids.add(application.userId))
+    ;[...db.customTeams, ...db.pendingTeams].forEach((team) => {
+      if (team.creatorId !== user.id) ids.add(team.creatorId)
+    })
     return Array.from(ids)
-  }, [db.chats, user?.id])
+  }, [db.chats, db.applications, db.customTeams, db.pendingTeams, user])
 
   useEffect(() => {
     if (!firebaseEnabled) return
