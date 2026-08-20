@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { asset } from '../data'
 import { useApp, dmChatId } from '../store'
 import type { ChatMessage } from '../store'
+import { firebaseEnabled, getUserProfileFb } from '../firebase'
 
 type Props = {
   open: boolean
@@ -46,6 +47,8 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
       'Notification' in window &&
       Notification.permission === 'granted',
   )
+  const [peerNames, setPeerNames] = useState<Record<string, string>>({})
+  const peerTriedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
@@ -78,9 +81,43 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     }
   }, [open, selectedId, setActiveChatId, markChatRead])
 
+  const peerIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const key of Object.keys(db.chats)) {
+      if (key.startsWith('dm:')) {
+        key
+          .slice(3)
+          .split(':')
+          .forEach((id) => {
+            if (id !== user?.id) ids.add(id)
+          })
+      }
+    }
+    return Array.from(ids)
+  }, [db.chats, user?.id])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    for (const id of peerIds) {
+      if (!id.startsWith('fb-') || peerTriedRef.current.has(id)) continue
+      peerTriedRef.current.add(id)
+      void getUserProfileFb(id.slice(3)).then((profile) => {
+        if (!alive) return
+        const name = `${profile.name ?? ''} ${profile.surname ?? ''}`.trim()
+        if (name) setPeerNames((prev) => ({ ...prev, [id]: name }))
+      })
+    }
+    return () => {
+      alive = false
+    }
+  }, [peerIds])
+
   const resolvePeerName = (peerId: string): string => {
     const peer = db.users.find((candidate) => candidate.id === peerId)
-    if (peer) return `${peer.name} ${peer.surname}`.trim()
+    if (peer && (peer.name || peer.surname)) return `${peer.name} ${peer.surname}`.trim()
+    const cached = peerNames[peerId]
+    if (cached) return cached
     const team = db.customTeams.find((candidate) => candidate.creatorId === peerId)
     if (team) return team.creatorName
     const application = db.applications.find((candidate) => candidate.userId === peerId)
@@ -159,7 +196,7 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     return Array.from(keys)
       .map(resolveChat)
       .filter((ref): ref is ChatRef => ref !== null)
-  }, [db.chats, db.applications, db.customTeams, db.users, user])
+  }, [db.chats, db.applications, db.customTeams, db.users, user, peerNames])
 
   const sphereRefs = useMemo(
     () =>
@@ -181,12 +218,12 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
 
   const messageAuthorName = (message: ChatMessage): string => {
     if (message.userId) {
-      const author = db.users.find((candidate) => candidate.id === message.userId)
-      if (author && (author.name || author.surname)) {
-        return `${author.name} ${author.surname}`.trim()
-      }
+      const resolved = resolvePeerName(message.userId)
+      if (resolved !== 'Пользователь') return resolved
     }
-    return message.authorName || 'Пользователь'
+    return message.authorName && message.authorName !== 'Пользователь'
+      ? message.authorName
+      : 'Пользователь'
   }
 
   const unreadCount = (id: string): number => {
