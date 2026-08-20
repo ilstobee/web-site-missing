@@ -931,11 +931,19 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                               {team.category} · {team.city} · {team.difficulty}
                             </p>
                             {team.image ? (
-                              <img
-                                src={team.image}
-                                alt=""
-                                className="mt-2 h-16 w-28 rounded-lg object-cover"
-                              />
+                              <a
+                                href={team.image}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 block overflow-hidden rounded-xl border border-ink/10"
+                                title="Открыть обложку команды"
+                              >
+                                <img
+                                  src={team.image}
+                                  alt="Обложка команды"
+                                  className="h-32 w-52 max-w-full object-cover"
+                                />
+                              </a>
                             ) : null}
                             <p className="mt-1 text-[11px] text-muted">
                               Создал: {team.creatorName} · {fmtDate(team.createdAt)}

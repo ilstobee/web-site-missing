@@ -57,7 +57,8 @@ export function CreateBanner({ onOpenAuth }: Props) {
       try {
         cover = await uploadCover(file, title.trim() || 'team')
         setImage(cover)
-      } catch {
+      } catch (error) {
+        console.error('[missing] Не удалось подготовить обложку:', error)
         cover = ''
       }
     }

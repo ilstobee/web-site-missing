@@ -998,7 +998,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (firebaseEnabled) {
         try {
-          return await addCategoryFb(category)
+          const id = await addCategoryFb(category)
+          if (adminId && adminId !== user.id) {
+            notify(adminId, `Новая сфера на модерации: «${category.name}»`)
+          }
+          return id
         } catch {
           return null
         }
@@ -1022,6 +1026,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (firebaseEnabled && isFbUser) {
         try {
           await addTeamFb(team)
+          if (adminId && adminId !== user.id) {
+            notify(adminId, `Новая команда на модерации: «${team.title}»`)
+          }
           return null
         } catch (error) {
           return fbErrorMessage(error)
@@ -1034,62 +1041,89 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null
     }
 
+    const adminId = import.meta.env.VITE_FIREBASE_ADMIN_UID
+      ? `fb-${import.meta.env.VITE_FIREBASE_ADMIN_UID}`
+      : ''
+
+    const notify = (userId: string, text: string) => {
+      const notification: Notification = {
+        id: uid(),
+        userId,
+        text,
+        read: false,
+        createdAt: new Date().toISOString(),
+      }
+      if (firebaseEnabled) {
+        addNotificationFb(notification)
+      } else {
+        mutate((d) => ({ ...d, notifications: [notification, ...d.notifications] }))
+      }
+    }
+
     const approveTeam = (id: string) => {
       if (!user?.isAdmin) return
+      const team = dbRef.current.pendingTeams.find((candidate) => candidate.id === id)
       if (firebaseEnabled) {
         void setTeamStatusFb(id, 'approved')
-        return
-      }
-      mutate((d) => {
-        const team = d.pendingTeams.find((candidate) => candidate.id === id)
-        if (!team) return d
-        return {
+      } else if (team) {
+        mutate((d) => ({
           ...d,
           customTeams: [{ ...team, status: 'approved' }, ...d.customTeams],
           pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
-        }
-      })
+        }))
+      }
+      if (team && team.creatorId !== user.id) {
+        notify(team.creatorId, `Команда «${team.title}» одобрена и опубликована!`)
+      }
     }
 
     const rejectTeam = (id: string) => {
       if (!user?.isAdmin) return
+      const team = dbRef.current.pendingTeams.find((candidate) => candidate.id === id)
       if (firebaseEnabled) {
         void setTeamStatusFb(id, 'rejected')
-        return
+      } else {
+        mutate((d) => ({
+          ...d,
+          pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
+        }))
       }
-      mutate((d) => ({
-        ...d,
-        pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
-      }))
+      if (team && team.creatorId !== user.id) {
+        notify(team.creatorId, `Команда «${team.title}» отклонена.`)
+      }
     }
 
     const approveCategory = (id: string) => {
       if (!user?.isAdmin) return
+      const category = dbRef.current.pendingCategories.find((candidate) => candidate.id === id)
       if (firebaseEnabled) {
         void setCategoryStatusFb(id, 'approved')
-        return
-      }
-      mutate((d) => {
-        const category = d.pendingCategories.find((candidate) => candidate.id === id)
-        if (!category) return d
-        return {
+      } else if (category) {
+        mutate((d) => ({
           ...d,
           customCategories: [{ ...category, status: 'approved' }, ...d.customCategories],
           pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
-        }
-      })
+        }))
+      }
+      if (category && category.creatorId !== user.id) {
+        notify(category.creatorId, `Сфера «${category.name}» одобрена и добавлена в список!`)
+      }
     }
 
     const rejectCategory = (id: string) => {
       if (!user?.isAdmin) return
+      const category = dbRef.current.pendingCategories.find((candidate) => candidate.id === id)
       if (firebaseEnabled) {
         void setCategoryStatusFb(id, 'rejected')
-        return
+      } else {
+        mutate((d) => ({
+          ...d,
+          pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
+        }))
       }
-      mutate((d) => ({
-        ...d,
-        pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
-      }))
+      if (category && category.creatorId !== user.id) {
+        notify(category.creatorId, `Сфера «${category.name}» отклонена.`)
+      }
     }
 
     const deleteTeam = (id: string) => {

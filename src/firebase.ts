@@ -355,41 +355,64 @@ export async function addCategoryFb(category: CustomCategory): Promise<string> {
   return ref.id
 }
 
-export async function uploadCover(file: File, name: string): Promise<string> {
-  if (storage) {
-    const fileRef = ref(storage, `covers/${name}-${Date.now()}`)
-    await uploadBytes(fileRef, file)
-    return getDownloadURL(fileRef)
-  }
-  return fileToDataUrl(file)
-}
-
-function fileToDataUrl(file: File): Promise<string> {
+function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      const img = new Image()
-      img.onload = () => {
-        const max = 600
-        const scale = Math.min(1, max / Math.max(img.width, img.height))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, Math.round(img.width * scale))
-        canvas.height = Math.max(1, Math.round(img.height * scale))
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          resolve(dataUrl)
-          return
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.8))
-      }
-      img.onerror = () => resolve(dataUrl)
-      img.src = dataUrl
-    }
+    reader.onload = () => resolve(reader.result as string)
     reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
     reader.readAsDataURL(file)
   })
+}
+
+async function compressImageFile(file: File): Promise<{ blob: Blob; dataUrl: string }> {
+  const dataUrl = await readAsDataUrl(file)
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Не удалось прочитать изображение'))
+    image.src = dataUrl
+  })
+  const max = 700
+  const scale = Math.min(1, max / Math.max(img.width, img.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(img.width * scale))
+  canvas.height = Math.max(1, Math.round(img.height * scale))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Не удалось обработать изображение')
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  const compressed = canvas.toDataURL('image/jpeg', 0.72)
+  try {
+    const response = await fetch(compressed)
+    return { blob: await response.blob(), dataUrl: compressed }
+  } catch {
+    return { blob: file, dataUrl: compressed }
+  }
+}
+
+function sanitizeStorageName(name: string): string {
+  const cleaned = name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+  return cleaned || 'team'
+}
+
+export async function uploadCover(file: File, name: string): Promise<string> {
+  let result: { blob: Blob; dataUrl: string }
+  try {
+    result = await compressImageFile(file)
+  } catch (error) {
+    console.error('[missing] Не удалось сжать изображение, сохраняю оригинал:', error)
+    result = { blob: file, dataUrl: await readAsDataUrl(file) }
+  }
+  if (storage) {
+    try {
+      const fileRef = ref(storage, `covers/${sanitizeStorageName(name)}-${Date.now()}.jpg`)
+      await uploadBytes(fileRef, result.blob)
+      return getDownloadURL(fileRef)
+    } catch (error) {
+      console.error('[missing] Не удалось загрузить в хранилище, сохраняю встроенное изображение:', error)
+      return result.dataUrl
+    }
+  }
+  return result.dataUrl
 }
 
 export function fbErrorMessage(error: unknown): string {
