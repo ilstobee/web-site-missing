@@ -270,6 +270,44 @@ export async function updateTeamMembersFb(id: string, members: number): Promise<
   await updateDoc(doc(db, 'teams', id), { members })
 }
 
+async function deleteChatFb(chatId: string): Promise<void> {
+  if (!db) return
+  const messages = await getDocs(collection(db, 'chats', chatId, 'messages'))
+  const batch = writeBatch(db)
+  messages.docs.forEach((docSnap) => batch.delete(docSnap.ref))
+  await batch.commit()
+  await deleteDoc(doc(db, 'chats', chatId))
+}
+
+export async function deleteTeamFb(id: string): Promise<void> {
+  if (!db) return
+  const batch = writeBatch(db)
+  batch.delete(doc(db, 'teams', id))
+  const applications = await getDocs(
+    query(collection(db, 'applications'), where('teamId', '==', id)),
+  )
+  applications.docs.forEach((docSnap) => batch.delete(docSnap.ref))
+  await batch.commit()
+  await deleteChatFb(`team:${id}`)
+}
+
+export async function deleteCategoryFb(id: string): Promise<void> {
+  if (!db) return
+  const batch = writeBatch(db)
+  batch.delete(doc(db, 'categories', id))
+  const teams = await getDocs(query(collection(db, 'teams'), where('sphereId', '==', id)))
+  for (const team of teams.docs) {
+    batch.delete(team.ref)
+    const applications = await getDocs(
+      query(collection(db, 'applications'), where('teamId', '==', team.id)),
+    )
+    applications.docs.forEach((docSnap) => batch.delete(docSnap.ref))
+  }
+  await batch.commit()
+  await deleteChatFb(id)
+  for (const team of teams.docs) await deleteChatFb(`team:${team.id}`)
+}
+
 export async function setCategoryStatusFb(id: string, status: ModerationStatus): Promise<void> {
   if (!db) return
   await updateDoc(doc(db, 'categories', id), { status })

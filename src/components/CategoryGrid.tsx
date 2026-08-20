@@ -33,7 +33,7 @@ function Stars({ value, onChange }: { value: number; onChange?: (next: number) =
 }
 
 export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat }: Props) {
-  const { allCategories, db, user, addReview, addCategory, sphereStats } = useApp()
+  const { allCategories, db, user, addReview, addCategory, deleteCategory, sphereStats } = useApp()
   const [showAll, setShowAll] = useState(false)
   const [addCatOpen, setAddCatOpen] = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -53,6 +53,17 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
 
   const visible = allCategories.slice(0, 6)
   const rest = allCategories.slice(6)
+
+  const deletableCategories = user
+    ? [
+        ...db.customCategories.filter(
+          (category) => user.isAdmin || category.creatorId === user.id,
+        ),
+        ...db.pendingCategories.filter(
+          (category) => user.isAdmin || category.creatorId === user.id,
+        ),
+      ]
+    : []
 
   const reviews = db.reviews
     .filter((review) => review.sphereId === active.id)
@@ -433,6 +444,40 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
                   ✓ Сфера отправлена на модерацию!
                 </span>
               ) : null}
+            </div>
+          ) : null}
+
+          {user ? (
+            <div className="mt-4 border-t border-white/70 pt-4">
+              <p className="text-[13px] font-extrabold text-ink">Мои сферы</p>
+              {deletableCategories.length === 0 ? (
+                <p className="mt-2 text-[12px] text-muted">
+                  Пока нет созданных сфер. Добавь свою сферу выше.
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {deletableCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-sm"
+                    >
+                      <span className="text-[13px] font-semibold text-ink">{category.name}</span>
+                      {category.status === 'pending' ? (
+                        <span className="text-[10px] font-bold text-muted">на модерации</span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => deleteCategory(category.id)}
+                        className="grid h-5 w-5 place-items-center rounded-full bg-[#fde4df] text-[11px] font-bold text-brand transition hover:bg-brand hover:text-white"
+                        title="Удалить сферу"
+                        aria-label={`Удалить сферу ${category.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

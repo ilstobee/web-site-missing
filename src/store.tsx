@@ -20,6 +20,8 @@ import {
   addCategoryFb,
   setTeamStatusFb,
   setCategoryStatusFb,
+  deleteTeamFb,
+  deleteCategoryFb,
   getUserProfileFb,
   saveUserProfileFb,
   sendPasswordResetFb,
@@ -236,6 +238,8 @@ type AppContextValue = {
   rejectTeam(id: string): void
   approveCategory(id: string): void
   rejectCategory(id: string): void
+  deleteTeam(id: string): void
+  deleteCategory(id: string): void
   addChatMessage(chatId: string, text: string): void
   editChatMessage(chatId: string, messageId: string, text: string): void
   deleteChatMessage(chatId: string, messageId: string): void
@@ -1088,6 +1092,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }))
     }
 
+    const deleteTeam = (id: string) => {
+      if (!user) return
+      const target =
+        dbRef.current.customTeams.find((candidate) => candidate.id === id) ??
+        dbRef.current.pendingTeams.find((candidate) => candidate.id === id)
+      if (!target) return
+      if (!user.isAdmin && target.creatorId !== user.id) return
+      if (firebaseEnabled) {
+        void deleteTeamFb(id)
+        return
+      }
+      mutate((d) => ({
+        ...d,
+        customTeams: d.customTeams.filter((candidate) => candidate.id !== id),
+        pendingTeams: d.pendingTeams.filter((candidate) => candidate.id !== id),
+        applications: d.applications.filter((application) => application.teamId !== id),
+        teamReviews: d.teamReviews.filter((review) => review.teamId !== id),
+        chats: Object.fromEntries(
+          Object.entries(d.chats).filter(([chatId]) => chatId !== `team:${id}`),
+        ),
+      }))
+    }
+
+    const deleteCategory = (id: string) => {
+      if (!user) return
+      const target =
+        dbRef.current.customCategories.find((candidate) => candidate.id === id) ??
+        dbRef.current.pendingCategories.find((candidate) => candidate.id === id)
+      if (!target) return
+      if (!user.isAdmin && target.creatorId !== user.id) return
+      if (firebaseEnabled) {
+        void deleteCategoryFb(id)
+        return
+      }
+      const removedTeamIds = new Set(
+        dbRef.current.customTeams
+          .concat(dbRef.current.pendingTeams)
+          .filter(
+            (team) =>
+              team.sphereId === id ||
+              team.category.toLowerCase() === target.name.toLowerCase(),
+          )
+          .map((team) => team.id),
+      )
+      mutate((d) => ({
+        ...d,
+        customCategories: d.customCategories.filter((candidate) => candidate.id !== id),
+        pendingCategories: d.pendingCategories.filter((candidate) => candidate.id !== id),
+        customTeams: d.customTeams.filter((team) => !removedTeamIds.has(team.id)),
+        pendingTeams: d.pendingTeams.filter((team) => !removedTeamIds.has(team.id)),
+        applications: d.applications.filter(
+          (application) => !removedTeamIds.has(application.teamId),
+        ),
+        reviews: d.reviews.filter((review) => review.sphereId !== id),
+        teamReviews: d.teamReviews.filter(
+          (review) => review.sphereId !== id || removedTeamIds.has(review.teamId),
+        ),
+        chats: Object.fromEntries(
+          Object.entries(d.chats).filter(
+            ([chatId]) =>
+              chatId !== id &&
+              !Array.from(removedTeamIds).some((teamId) => chatId === `team:${teamId}`),
+          ),
+        ),
+      }))
+    }
+
     const addChatMessage = (chatId: string, text: string) => {
       const authorName = user ? `${user.name} ${user.surname}`.trim() : 'Гость'
       const message: ChatMessage = {
@@ -1229,6 +1300,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       rejectTeam,
       approveCategory,
       rejectCategory,
+      deleteTeam,
+      deleteCategory,
       addChatMessage,
       editChatMessage,
       deleteChatMessage,

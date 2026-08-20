@@ -38,6 +38,8 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     rejectTeam,
     approveCategory,
     rejectCategory,
+    deleteTeam,
+    deleteCategory,
     sphereName,
   } = useApp()
 
@@ -447,21 +449,31 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                                 {team.category} · {team.city} · {team.difficulty}
                               </p>
                             </div>
-                            <span
-                              className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${
-                                team.status === 'approved'
-                                  ? 'bg-brand-soft text-brand'
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <span
+                                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${
+                                  team.status === 'approved'
+                                    ? 'bg-brand-soft text-brand'
+                                    : team.status === 'rejected'
+                                      ? 'bg-[#fde4df] text-brand'
+                                      : 'bg-white text-muted'
+                                }`}
+                              >
+                                {team.status === 'approved'
+                                  ? 'Одобрена'
                                   : team.status === 'rejected'
-                                    ? 'bg-[#fde4df] text-brand'
-                                    : 'bg-white text-muted'
-                              }`}
-                            >
-                              {team.status === 'approved'
-                                ? 'Одобрена'
-                                : team.status === 'rejected'
-                                  ? 'Отклонена'
-                                  : 'На модерации'}
-                            </span>
+                                    ? 'Отклонена'
+                                    : 'На модерации'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => deleteTeam(team.id)}
+                                className="rounded-full border border-ink/10 px-3 py-1 text-[11px] font-semibold text-muted transition hover:border-brand hover:bg-[#fde4df] hover:text-brand"
+                                title="Удалить команду"
+                              >
+                                Удалить
+                              </button>
+                            </div>
                           </div>
                           <p className="mt-3 text-[12px] font-extrabold text-ink">
                             Участники ({members.length + 1}/{team.capacity})
@@ -886,6 +898,14 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                             >
                               Отклонить
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteCategory(category.id)}
+                              className="rounded-full border border-ink/10 px-4 py-2 text-[12px] font-semibold text-muted transition hover:border-brand hover:bg-[#fde4df] hover:text-brand"
+                              title="Удалить сферу"
+                            >
+                              Удалить
+                            </button>
                           </div>
                         </div>
                       </article>
@@ -935,6 +955,14 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                               className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
                             >
                               Отклонить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteTeam(team.id)}
+                              className="rounded-full border border-ink/10 px-4 py-2 text-[12px] font-semibold text-muted transition hover:border-brand hover:bg-[#fde4df] hover:text-brand"
+                              title="Удалить команду"
+                            >
+                              Удалить
                             </button>
                           </div>
                         </div>
