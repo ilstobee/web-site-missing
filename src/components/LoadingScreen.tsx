@@ -50,7 +50,7 @@ export function LoadingScreen({ onDone }: Props) {
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: `${import.meta.env.BASE_URL}${dark ? 'loading-dark.json' : 'loading-light.json'}`,
+        path: `${import.meta.env.BASE_URL}${dark ? 'loading-dark.json' : 'loading-light.json'}?v=3`,
       })
       if (anim) {
         anim.addEventListener('DOMLoaded', () => {
