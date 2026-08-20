@@ -6,10 +6,11 @@ type Props = {
   onOpenAuth(): void
   onOpenLK(): void
   onOpenApplications(): void
+  onOpenIncoming(): void
   onOpenChat(chatId?: string): void
 }
 
-export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }: Props) {
+export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncoming, onOpenChat }: Props) {
   const { user, db, logout, markAllNotificationsRead } = useApp()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [dark, setDark] = useState(() => {
@@ -42,6 +43,11 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     : []
   const unread = myNotifications.filter((notification) => !notification.read).length
+  const incomingPending = user
+    ? db.applications.filter(
+        (application) => application.creatorId === user.id && application.status === 'pending',
+      ).length
+    : 0
   const initials = user ? `${user.name[0] ?? ''}${user.surname[0] ?? ''}`.toUpperCase() : ''
 
   return (
@@ -166,6 +172,31 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenChat }:
               </div>
             ) : null}
           </div>
+
+          {user ? (
+            <button
+              type="button"
+              onClick={onOpenIncoming}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-2 text-[12px] font-bold text-brand transition hover:bg-brand hover:text-white"
+              title="Входящие заявки — принимай участников в свои команды"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+                <path
+                  d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <path d="M3 8.5 12 13l9-4.5M12 13v7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              </svg>
+              Заявки
+              {incomingPending > 0 ? (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
+                  {incomingPending}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
 
           {user ? (
             <>

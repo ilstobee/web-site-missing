@@ -20,7 +20,9 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatInitialId, setChatInitialId] = useState<string | undefined>(undefined)
-  const [profileInitialTab, setProfileInitialTab] = useState<'profile' | 'applications'>('profile')
+  const [profileInitialTab, setProfileInitialTab] = useState<
+    'profile' | 'applications' | 'incoming'
+  >('profile')
   const [activeSphere, setActiveSphere] = useState('travel')
   const [loading, setLoading] = useState(true)
   const openAuth = () => setAuthOpen(true)
@@ -39,6 +41,14 @@ export default function App() {
       return
     }
     setProfileInitialTab('applications')
+    setProfileOpen(true)
+  }
+  const openIncoming = () => {
+    if (!user) {
+      setAuthOpen(true)
+      return
+    }
+    setProfileInitialTab('incoming')
     setProfileOpen(true)
   }
   const closeProfile = () => setProfileOpen(false)
@@ -86,7 +96,7 @@ export default function App() {
 
   return (
     <div id="top" className="min-h-svh wave-top">
-      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenChat={openHeaderChat} />
+      <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenIncoming={openIncoming} onOpenChat={openHeaderChat} />
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
         <Hero />
