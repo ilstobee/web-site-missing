@@ -179,6 +179,16 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
     return [...msgs].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[msgs.length - 1]
   }
 
+  const messageAuthorName = (message: ChatMessage): string => {
+    if (message.userId) {
+      const author = db.users.find((candidate) => candidate.id === message.userId)
+      if (author && (author.name || author.surname)) {
+        return `${author.name} ${author.surname}`.trim()
+      }
+    }
+    return message.authorName || 'Пользователь'
+  }
+
   const unreadCount = (id: string): number => {
     if (!user) return 0
     const lastRead = chatRead[id] ?? ''
@@ -360,7 +370,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13px] font-bold text-ink">{ref.name}</p>
                           <p className="truncate text-[11px] text-muted">
-                            {preview ? `${preview.authorName}: ${preview.text}` : ref.subtitle}
+                            {preview ? `${messageAuthorName(preview)}: ${preview.text}` : ref.subtitle}
                           </p>
                         </div>
                         {unread > 0 ? (
@@ -451,7 +461,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                               mine ? 'text-white/80' : 'text-brand'
                             }`}
                           >
-                            {message.authorName}
+                            {messageAuthorName(message)}
                           </div>
                           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                             {message.text}
