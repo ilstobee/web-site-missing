@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store'
-import { featuredTeams, recommendedTeams, type Team } from '../data'
 import {
   INTEREST_OPTIONS,
   SEEKING_OPTIONS,
@@ -27,23 +26,21 @@ export function QuickMatch({
   const [seeking, setSeeking] = useState<Seeking>(user?.seeking || 'team')
   const [submitted, setSubmitted] = useState(false)
 
-  const candidates = useMemo(() => {
-    const custom = db.customTeams.map((team) =>
-      toMatchTeam({
-        id: team.id,
-        title: team.title,
-        category: team.category,
-        tags: team.tags,
-        city: team.city,
-        difficulty: team.difficulty,
-        description: team.description,
-      }),
-    )
-    const staticTeams = [...featuredTeams, ...recommendedTeams].map((team: Team) =>
-      toMatchTeam(team),
-    )
-    return [...custom, ...staticTeams]
-  }, [db.customTeams])
+  const candidates = useMemo(
+    () =>
+      db.customTeams.map((team) =>
+        toMatchTeam({
+          id: team.id,
+          title: team.title,
+          category: team.category,
+          tags: team.tags,
+          city: team.city,
+          difficulty: team.difficulty,
+          description: team.description,
+        }),
+      ),
+    [db.customTeams],
+  )
 
   const results = useMemo(() => {
     const prefs = {
