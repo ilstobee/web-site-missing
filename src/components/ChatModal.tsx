@@ -773,24 +773,6 @@ const active = selectedId ? resolveChat(selectedId) : null
                                   {fmtTime(message.createdAt)}
                                   {message.edited ? ' · изменено' : ''}
                                 </span>
-                                {mine ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => startEdit(message)}
-                                      className="underline"
-                                    >
-                                      Изменить
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => confirmDelete(message)}
-                                      className="underline"
-                                    >
-                                      Удалить
-                                    </button>
-                                  </>
-                                ) : null}
                               </div>
                             </>
                           )}
