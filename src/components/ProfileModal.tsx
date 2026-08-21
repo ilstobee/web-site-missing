@@ -103,7 +103,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     ...db.pendingTeams.filter((team) => team.creatorId === user.id),
     ...db.customTeams.filter((team) => team.creatorId === user.id),
   ]
-  const myTeamIds = new Set(myTeams.map((team) => team.id))
 
   const myApplications = db.applications
     .filter((application) => application.userId === user.id)
@@ -131,7 +130,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const incoming = db.applications
-    .filter((application) => myTeamIds.has(application.teamId))
+    .filter((application) => application.creatorId === user.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const mySphereReviews = db.reviews

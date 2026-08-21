@@ -558,7 +558,6 @@ export async function setApplicationStatusFb(
 
 export function subscribeApplicationsFb(
   userId: string,
-  teamIds: string[],
   callback: (applications: Application[]) => void,
 ): () => void {
   if (!db) return () => {}
@@ -600,17 +599,14 @@ export function subscribeApplicationsFb(
       ),
     ),
   )
-  for (let i = 0; i < teamIds.length; i += 10) {
-    const chunk = teamIds.slice(i, i + 10)
-    unsubs.push(
-      attach(
-        query(
-          collection(db, 'applications'),
-          where('teamId', 'in', chunk),
-        ),
+  unsubs.push(
+    attach(
+      query(
+        collection(db, 'applications'),
+        where('creatorId', '==', userId),
       ),
-    )
-  }
+    ),
+  )
   return () => unsubs.forEach((unsubscribe) => unsubscribe())
 }
 

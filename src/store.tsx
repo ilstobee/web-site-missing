@@ -514,23 +514,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   allCategoriesRef.current = allCategories
   const activeChatRef = useRef<string | null>(null)
 
-  const myTeamIds = useMemo(
-    () => [
-      ...db.customTeams
-        .filter((team) => team.creatorId === (user?.id ?? ''))
-        .map((team) => team.id),
-      ...db.pendingTeams
-        .filter((team) => team.creatorId === (user?.id ?? ''))
-        .map((team) => team.id),
-    ],
-    [db.customTeams, db.pendingTeams, user?.id],
-  )
-
   useEffect(() => {
     if (!firebaseEnabled) return
     if (!user) return
     let alive = true
-    const unsubApps = subscribeApplicationsFb(user.id, myTeamIds, (applications) => {
+    const unsubApps = subscribeApplicationsFb(user.id, (applications) => {
       if (alive) setDb((d) => ({ ...d, applications }))
     })
     const unsubNotifs = subscribeNotificationsFb(user.id, (notifications) => {
@@ -541,7 +529,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unsubApps()
       unsubNotifs()
     }
-  }, [user?.id, myTeamIds])
+  }, [user?.id])
 
   useEffect(() => {
     if (!firebaseEnabled) return
