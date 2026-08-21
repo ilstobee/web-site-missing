@@ -5,7 +5,7 @@ type Props = {
 }
 
 export function Logo({ size = 'md' }: Props) {
-  const icon = size === 'sm' ? 'h-11' : 'h-14 sm:h-16'
+  const icon = size === 'sm' ? 'h-11' : 'h-[3.75rem] sm:h-[4.25rem]'
   const text = size === 'sm' ? 'text-xl' : 'text-[1.75rem] sm:text-3xl'
 
   return (
