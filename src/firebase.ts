@@ -471,6 +471,9 @@ export function sendMessageFb(chatId: string, message: ChatMessage): void {
     authorName: message.authorName,
     text: message.text,
     createdAt: message.createdAt,
+    ...(message.attachments
+      ? { attachments: message.attachments.map((item) => ({ kind: item.kind, url: item.url, name: item.name ?? '', durationMs: item.durationMs ?? 0 })) }
+      : {}),
   })
 }
 
@@ -511,6 +514,16 @@ export function subscribeChatMessagesFb(
             createdAt: data.createdAt ?? new Date().toISOString(),
             edited: data.edited === true,
             editedAt: data.editedAt ?? undefined,
+            ...(Array.isArray(data.attachments)
+              ? {
+                  attachments: data.attachments.map((item: { kind: string; url: string; name?: string; durationMs?: number }) => ({
+                    kind: item.kind === 'audio' ? 'audio' : 'image',
+                    url: item.url ?? '',
+                    name: item.name ?? '',
+                    durationMs: item.durationMs ?? undefined,
+                  })),
+                }
+              : {}),
           }
         }),
       )

@@ -45,12 +45,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Сообщения чата: читают все авторизованные, пишет только автор
+    // Сообщения чата: читают все авторизованные, пишет и правит только автор
     match /chats/{chatId}/messages/{messageId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.authorId == 'fb-' + request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (request.auth != null
+          && resource.data.authorId == 'fb-' + request.auth.uid
+          && request.resource.data.authorId == resource.data.authorId);
+      allow delete: if isAdmin()
+        || (request.auth != null && resource.data.authorId == 'fb-' + request.auth.uid);
     }
 
     // Заявки: читает сам заявитель и организатор команды,

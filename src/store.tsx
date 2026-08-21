@@ -148,6 +148,13 @@ export type TeamReview = {
   createdAt: string
 }
 
+export type ChatAttachment = {
+  kind: 'image' | 'audio'
+  url: string
+  name?: string
+  durationMs?: number
+}
+
 export type ChatMessage = {
   id: string
   userId?: string
@@ -156,6 +163,7 @@ export type ChatMessage = {
   createdAt: string
   edited?: boolean
   editedAt?: string
+  attachments?: ChatAttachment[]
 }
 
 export type Visit = {
@@ -254,7 +262,7 @@ type AppContextValue = {
   rejectCategory(id: string): void
   deleteTeam(id: string): void
   deleteCategory(id: string): void
-  addChatMessage(chatId: string, text: string): void
+  addChatMessage(chatId: string, text: string, attachments?: ChatAttachment[]): void
   editChatMessage(chatId: string, messageId: string, text: string): void
   deleteChatMessage(chatId: string, messageId: string): void
   recordVisit(sphereId: string): void
@@ -1264,7 +1272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const addChatMessage = (chatId: string, text: string) => {
+    const addChatMessage = (chatId: string, text: string, attachments?: ChatAttachment[]) => {
       const authorName = user ? `${user.name} ${user.surname}`.trim() : 'Гость'
       const message: ChatMessage = {
         id: uid(),
@@ -1272,6 +1280,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         authorName,
         text: censor(text),
         createdAt: new Date().toISOString(),
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       }
       mutate((d) => ({
         ...d,

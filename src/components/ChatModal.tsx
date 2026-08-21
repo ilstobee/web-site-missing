@@ -54,6 +54,14 @@ export function ChatModal({ open, onClose, initialChatId }: Props) {
   const [peerNames, setPeerNames] = useState<Record<string, string>>({})
   const peerTriedRef = useRef<Set<string>>(new Set())
 
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [recording, setRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordChunksRef = useRef<Blob[]>([])
+  const recordStartRef = useRef(0)
+  const longPressRef = useRef<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
     const onChange = () => setIsDesktop(mq.matches)
@@ -339,6 +347,97 @@ const active = selectedId ? resolveChat(selectedId) : null
     setText('')
   }
 
+  const openMenu = (message: ChatMessage, x: number, y: number) => {
+    setMenu({ id: message.id, x, y })
+  }
+
+  const closeMenu = () => setMenu(null)
+
+  const copyMessage = (message: ChatMessage) => {
+    if (message.text && typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(message.text).catch(() => {})
+    }
+    closeMenu()
+  }
+
+  const downscaleImage = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const img = new Image()
+        img.onload = () => {
+          const max = 1000
+          const scale = Math.min(1, max / Math.max(img.width, img.height))
+          const w = Math.max(1, Math.round(img.width * scale))
+          const h = Math.max(1, Math.round(img.height * scale))
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('no-canvas'))
+            return
+          }
+          ctx.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.72))
+        }
+        img.onerror = reject
+        img.src = reader.result as string
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+  const onPhotoPicked = async (files: FileList | null) => {
+    if (!files || !files.length || !active) return
+    const file = files[0]
+    try {
+      const url = await downscaleImage(file)
+      addChatMessage(active.id, text.trim(), [{ kind: 'image', url, name: file.name }])
+      setText('')
+    } catch {
+      // ignore image errors
+    }
+  }
+
+  const toggleRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const rec = new MediaRecorder(stream)
+      recordChunksRef.current = []
+      recordStartRef.current = Date.now()
+      rec.ondataavailable = (event) => {
+        if (event.data.size > 0) recordChunksRef.current.push(event.data)
+      }
+      rec.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop())
+        const blob = new Blob(recordChunksRef.current, {
+          type: rec.mimeType || 'audio/webm',
+        })
+        const reader = new FileReader()
+        reader.onload = () => {
+          const url = reader.result as string
+          if (active) {
+            addChatMessage(active.id, '', [
+              { kind: 'audio', url, durationMs: Date.now() - recordStartRef.current },
+            ])
+          }
+        }
+        reader.readAsDataURL(blob)
+        setRecording(false)
+      }
+      mediaRecorderRef.current = rec
+      rec.start()
+      setRecording(true)
+    } catch {
+      setRecording(false)
+    }
+  }
+
   const startEdit = (message: ChatMessage) => {
     setEditingId(message.id)
     setEditText(message.text)
@@ -584,6 +683,27 @@ const active = selectedId ? resolveChat(selectedId) : null
                               ? 'rounded-br-md bg-brand text-white'
                               : 'rounded-bl-md bg-white text-ink ring-1 ring-ink/5'
                           }`}
+                          onContextMenu={(event) => {
+                            event.preventDefault()
+                            openMenu(message, event.clientX, event.clientY)
+                          }}
+                          onTouchStart={(event) => {
+                            const x = event.touches[0]?.clientX ?? 0
+                            const y = event.touches[0]?.clientY ?? 0
+                            longPressRef.current = window.setTimeout(() => openMenu(message, x, y), 550)
+                          }}
+                          onTouchEnd={() => {
+                            if (longPressRef.current) {
+                              clearTimeout(longPressRef.current)
+                              longPressRef.current = null
+                            }
+                          }}
+                          onTouchMove={() => {
+                            if (longPressRef.current) {
+                              clearTimeout(longPressRef.current)
+                              longPressRef.current = null
+                            }
+                          }}
                         >
                           <div
                             className={`text-[11px] font-bold ${
@@ -622,10 +742,25 @@ const active = selectedId ? resolveChat(selectedId) : null
                               </div>
                             </div>
                           ) : (
-                            <>
+                             <>
                               <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                                 {message.text}
                               </p>
+                              {message.attachments?.map((att, index) => (
+                                <div key={index} className="mt-2">
+                                  {att.kind === 'image' ? (
+                                    <a href={att.url} target="_blank" rel="noreferrer">
+                                      <img
+                                        src={att.url}
+                                        alt={att.name ?? 'фото'}
+                                        className="max-h-72 w-full rounded-xl object-cover"
+                                      />
+                                    </a>
+                                  ) : (
+                                    <audio controls src={att.url} className="w-full" />
+                                  )}
+                                </div>
+                              ))}
                               <div
                                 className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
                                   mine ? 'text-white/70' : 'text-muted'
@@ -664,6 +799,57 @@ const active = selectedId ? resolveChat(selectedId) : null
               </div>
 
               <div className="flex items-center gap-2 border-t border-cream px-4 py-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    void onPhotoPicked(event.target.files)
+                    event.target.value = ''
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Отправить фото"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink transition hover:bg-cream"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                    <path
+                      d="M4 16l4.5-4.5 3 3L16 9l4 4M4 6h16v12H4z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleRecording()}
+                  aria-label={recording ? 'Остановить запись' : 'Голосовое сообщение'}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${
+                    recording ? 'bg-brand text-white' : 'text-ink hover:bg-cream'
+                  }`}
+                >
+                  {recording ? (
+                    <span className="h-3.5 w-3.5 rounded-sm bg-white" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                      <path
+                        d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      />
+                      <path
+                        d="M5 11a7 7 0 0 0 14 0M12 18v3"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                </button>
                 <input
                   className="w-full rounded-full border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
                   placeholder="Напиши сообщение…"
@@ -705,6 +891,67 @@ const active = selectedId ? resolveChat(selectedId) : null
           ) : null}
         </div>
       </div>
+
+      {menu ? (
+        (() => {
+          const menuMessage = sorted.find((candidate) => candidate.id === menu.id) ?? null
+          const menuMine = menuMessage
+            ? menuMessage.userId
+              ? menuMessage.userId === (user?.id ?? 'guest')
+              : menuMessage.authorName === myName
+            : false
+          const maxLeft = typeof window !== 'undefined' ? window.innerWidth - 180 : 240
+          const maxTop = typeof window !== 'undefined' ? window.innerHeight - 200 : 600
+          return (
+            <>
+              <div
+                className="fixed inset-0 z-[60]"
+                onClick={closeMenu}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  closeMenu()
+                }}
+              />
+              <div
+                className="fixed z-[61] min-w-[160px] overflow-hidden rounded-2xl bg-white py-1 shadow-[0_14px_40px_rgba(80,40,40,0.22)] ring-1 ring-ink/10"
+                style={{ top: Math.min(menu.y, maxTop), left: Math.min(menu.x, maxLeft) }}
+              >
+                <button
+                  type="button"
+                  onClick={() => menuMessage && copyMessage(menuMessage)}
+                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink transition hover:bg-cream"
+                >
+                  Копировать
+                </button>
+                {menuMine ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (menuMessage) startEdit(menuMessage)
+                        closeMenu()
+                      }}
+                      className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink transition hover:bg-cream"
+                    >
+                      Изменить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (menuMessage) confirmDelete(menuMessage)
+                        closeMenu()
+                      }}
+                      className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-brand transition hover:bg-cream"
+                    >
+                      Удалить
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </>
+          )
+        })()
+      ) : null}
     </div>
   )
 }
