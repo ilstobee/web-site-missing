@@ -73,6 +73,13 @@ export type ProfilePatch = {
   city?: string
   telegram?: string
   hobbies?: string[]
+  interests?: string[]
+  seeking?: 'team' | 'people' | 'project' | ''
+  skills?: string[]
+  availability?: string
+  goal?: string
+  level?: string
+  online?: boolean
   role?: UserRole
   login?: string
   isAdmin?: boolean
@@ -85,6 +92,13 @@ function buildPatch(profile: ProfilePatch): Record<string, unknown> {
   if (profile.city !== undefined) patch.city = profile.city
   if (profile.telegram !== undefined) patch.telegram = profile.telegram
   if (profile.hobbies !== undefined) patch.hobbies = profile.hobbies
+  if (profile.interests !== undefined) patch.interests = profile.interests
+  if (profile.seeking !== undefined) patch.seeking = profile.seeking
+  if (profile.skills !== undefined) patch.skills = profile.skills
+  if (profile.availability !== undefined) patch.availability = profile.availability
+  if (profile.goal !== undefined) patch.goal = profile.goal
+  if (profile.level !== undefined) patch.level = profile.level
+  if (profile.online !== undefined) patch.online = profile.online
   if (profile.role !== undefined) patch.role = profile.role
   if (profile.login !== undefined) patch.login = profile.login
   if (profile.isAdmin !== undefined) patch.isAdmin = profile.isAdmin

@@ -6,6 +6,7 @@ import { CategoryGrid } from './components/CategoryGrid'
 import { FeaturedTeams } from './components/FeaturedTeams'
 import { CreateBanner } from './components/CreateBanner'
 import { RecommendedTeams } from './components/RecommendedTeams'
+import { QuickMatch } from './components/QuickMatch'
 import { StatsBar } from './components/StatsBar'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Footer } from './components/Footer'
@@ -100,6 +101,7 @@ export default function App() {
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
         <Hero />
+        <QuickMatch onOpenAuth={openAuth} onOpenChat={openChat} />
         <CategoryGrid
           activeId={activeSphere}
           onActiveChange={handleSphereChange}

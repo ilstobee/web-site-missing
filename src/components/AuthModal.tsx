@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { useApp, isValidEmail, ERR_NOT_REGISTERED } from '../store'
 import type { UserRole } from '../store'
 import { firebaseEnabled } from '../firebase'
+import {
+  INTEREST_OPTIONS,
+  SEEKING_OPTIONS,
+  LEVEL_OPTIONS,
+  AVAILABILITY_OPTIONS,
+  type Seeking,
+} from '../matching'
 
 type Props = {
   open: boolean
@@ -30,8 +37,14 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [surname, setSurname] = useState('')
   const [city, setCity] = useState('')
   const [telegram, setTelegram] = useState('')
-  const [hobby, setHobby] = useState('')
-  const [hobbies, setHobbies] = useState<string[]>([])
+  const [interests, setInterests] = useState<string[]>([])
+  const [seeking, setSeeking] = useState<Seeking>('team')
+  const [skillInput, setSkillInput] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
+  const [availability, setAvailability] = useState('')
+  const [level, setLevel] = useState('')
+  const [goal, setGoal] = useState('')
+  const [online, setOnline] = useState(false)
   const [role, setRole] = useState<UserRole>('participant')
 
   const [error, setError] = useState<string | null>(null)
@@ -39,12 +52,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [verifyEmail, setVerifyEmail] = useState('')
 
   if (!open) return null
-
-  const addHobby = () => {
-    const trimmed = hobby.trim()
-    if (trimmed && !hobbies.includes(trimmed)) setHobbies([...hobbies, trimmed])
-    setHobby('')
-  }
 
   const handleLogin = async () => {
     const err = await login(loginValue, password)
@@ -79,7 +86,14 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       password,
       telegram,
       city,
-      hobbies,
+      hobbies: interests,
+      interests,
+      seeking,
+      skills,
+      availability,
+      goal,
+      level,
+      online,
       role,
     })
     if (err) {
@@ -162,8 +176,14 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setSurname('')
     setCity('')
     setTelegram('')
-    setHobby('')
-    setHobbies([])
+    setInterests([])
+    setSeeking('team')
+    setSkillInput('')
+    setSkills([])
+    setAvailability('')
+    setLevel('')
+    setGoal('')
+    setOnline(false)
     setRole('participant')
     setError(null)
     setInfo(null)
@@ -201,47 +221,171 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     </div>
   )
 
-  const hobbiesField = (
-    <div>
-      <div className="flex gap-2">
-        <input
-          className={inputClass}
-          placeholder="Хобби (например: футбол, кино)"
-          value={hobby}
-          onChange={(event) => setHobby(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              addHobby()
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={addHobby}
-          className="shrink-0 rounded-xl bg-brand-soft px-3 text-lg font-bold text-brand hover:bg-brand hover:text-white"
-          aria-label="Добавить хобби"
-        >
-          +
-        </button>
-      </div>
-      {hobbies.length > 0 ? (
+  const toggleInterest = (interest: string) => {
+    setInterests((current) =>
+      current.includes(interest)
+        ? current.filter((item) => item !== interest)
+        : [...current, interest],
+    )
+  }
+  const addSkill = () => {
+    const trimmed = skillInput.trim()
+    if (trimmed && !skills.includes(trimmed)) setSkills([...skills, trimmed])
+    setSkillInput('')
+  }
+  const toggleOnline = () => setOnline((value) => !value)
+
+  const profileFields = (
+    <div className="space-y-4">
+      <div>
+        <p className="text-[12px] font-bold text-ink">Что тебе интересно?</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {hobbies.map((item) => (
+          {INTEREST_OPTIONS.map((interest) => {
+            const active = interests.includes(interest)
+            return (
+              <button
+                key={interest}
+                type="button"
+                onClick={() => toggleInterest(interest)}
+                className={
+                  active
+                    ? 'rounded-full bg-brand px-3 py-1.5 text-[12px] font-semibold text-white'
+                    : 'rounded-full border border-ink/15 bg-white px-3 py-1.5 text-[12px] font-semibold text-ink hover:border-brand'
+                }
+              >
+                {interest}
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-1.5 text-[11px] text-muted">
+          Интересы нужны для умного подбора команд и людей.
+        </p>
+      </div>
+
+      <div>
+        <p className="text-[12px] font-bold text-ink">Ищу</p>
+        <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-full bg-ink/5 p-1">
+          {SEEKING_OPTIONS.map((option) => (
             <button
-              key={item}
+              key={option.value}
               type="button"
-              onClick={() => setHobbies(hobbies.filter((h) => h !== item))}
-              className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-semibold text-brand"
+              onClick={() => setSeeking(option.value)}
+              title={option.hint}
+              className={
+                seeking === option.value
+                  ? 'rounded-full bg-brand px-3 py-1.5 text-[12px] font-semibold text-white'
+                  : 'rounded-full px-3 py-1.5 text-[12px] font-semibold text-ink hover:text-brand'
+              }
             >
-              {item} ✕
+              {option.label}
             </button>
           ))}
         </div>
-      ) : null}
-      <p className="mt-1.5 text-[11px] text-muted">
-        Хобби нужны для персональных рекомендаций команд и сфер.
-      </p>
+      </div>
+
+      <div>
+        <div className="flex gap-2">
+          <input
+            className={inputClass}
+            placeholder="Навыки (например: дизайн, Python)"
+            value={skillInput}
+            onChange={(event) => setSkillInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                addSkill()
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={addSkill}
+            className="shrink-0 rounded-xl bg-brand-soft px-3 text-lg font-bold text-brand hover:bg-brand hover:text-white"
+            aria-label="Добавить навык"
+          >
+            +
+          </button>
+        </div>
+        {skills.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {skills.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setSkills(skills.filter((s) => s !== item))}
+                className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-semibold text-brand"
+              >
+                {item} ✕
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-[12px] font-bold text-ink">График</span>
+          <select
+            className={inputClass}
+            value={availability}
+            onChange={(event) => setAvailability(event.target.value)}
+          >
+            <option value="">Не выбрано</option>
+            {AVAILABILITY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-[12px] font-bold text-ink">Уровень</span>
+          <select
+            className={inputClass}
+            value={level}
+            onChange={(event) => setLevel(event.target.value)}
+          >
+            <option value="">Не выбрано</option>
+            {LEVEL_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div>
+        <span className="text-[12px] font-bold text-ink">Твоя цель</span>
+        <textarea
+          className={`${inputClass} mt-1 resize-none`}
+          rows={2}
+          placeholder="Например: хочу создать свой стартап / найти команду для хакатона"
+          value={goal}
+          onChange={(event) => setGoal(event.target.value)}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={toggleOnline}
+        className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition ${
+          online ? 'border-brand bg-brand-soft text-brand' : 'border-ink/10 bg-white text-ink'
+        }`}
+      >
+        <span>Готов(а) работать онлайн</span>
+        <span
+          className={`h-5 w-9 rounded-full transition ${online ? 'bg-brand' : 'bg-ink/20'}`}
+          aria-hidden
+        >
+          <span
+            className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition ${
+              online ? 'translate-x-4' : 'translate-x-0.5'
+            }`}
+          />
+        </span>
+      </button>
     </div>
   )
 
@@ -491,7 +635,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                 onChange={(event) => setPassword(event.target.value)}
               />
               {roleSelect}
-              {hobbiesField}
+              {profileFields}
               <button
                 type="submit"
                 className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-white transition hover:bg-brand-dark"

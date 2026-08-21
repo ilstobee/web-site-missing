@@ -60,6 +60,13 @@ export type User = {
   telegram: string
   city: string
   hobbies: string[]
+  interests: string[]
+  seeking: 'team' | 'people' | 'project' | ''
+  skills: string[]
+  availability: string
+  goal: string
+  level: string
+  online: boolean
   role: UserRole
   isAdmin?: boolean
   emailVerified?: boolean
@@ -181,6 +188,13 @@ export type RegisterInput = {
   telegram: string
   city: string
   hobbies: string[]
+  interests: string[]
+  seeking: 'team' | 'people' | 'project' | ''
+  skills: string[]
+  availability: string
+  goal: string
+  level: string
+  online: boolean
   role: UserRole
   email?: string
   phone?: string
@@ -278,7 +292,28 @@ function loadDB(): DB {
       const parsed = JSON.parse(raw) as Partial<DB>
       const merged = { ...emptyDB, ...parsed }
       merged.users = (merged.users ?? []).map((candidate) =>
-        candidate.role ? candidate : { ...candidate, role: 'participant' },
+        candidate.role
+          ? {
+              ...candidate,
+              interests: candidate.interests ?? [],
+              seeking: candidate.seeking ?? '',
+              skills: candidate.skills ?? [],
+              availability: candidate.availability ?? '',
+              goal: candidate.goal ?? '',
+              level: candidate.level ?? '',
+              online: candidate.online ?? false,
+            }
+          : {
+              ...candidate,
+              role: 'participant',
+              interests: candidate.interests ?? [],
+              seeking: candidate.seeking ?? '',
+              skills: candidate.skills ?? [],
+              availability: candidate.availability ?? '',
+              goal: candidate.goal ?? '',
+              level: candidate.level ?? '',
+              online: candidate.online ?? false,
+            },
       )
       merged.customTeams = (merged.customTeams ?? []).map((team) =>
         team.status ? team : { ...team, status: 'approved' },
@@ -392,6 +427,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           telegram: profile.telegram ?? '',
           city: profile.city ?? '',
           hobbies: profile.hobbies ?? [],
+          interests: profile.interests ?? [],
+          seeking: profile.seeking ?? '',
+          skills: profile.skills ?? [],
+          availability: profile.availability ?? '',
+          goal: profile.goal ?? '',
+          level: profile.level ?? '',
+          online: profile.online ?? false,
           role: profile.role ?? 'participant',
           isAdmin,
           emailVerified: fbUser.emailVerified,
@@ -635,7 +677,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             surname: input.surname.trim(),
             city: input.city.trim(),
             telegram: input.telegram.trim(),
-            hobbies: input.hobbies.map((hobby) => hobby.trim()).filter(Boolean),
+            hobbies: input.interests.map((hobby) => hobby.trim()).filter(Boolean),
+            interests: input.interests.map((hobby) => hobby.trim()).filter(Boolean),
+            seeking: input.seeking,
+            skills: input.skills.map((skill) => skill.trim()).filter(Boolean),
+            availability: input.availability,
+            goal: input.goal.trim(),
+            level: input.level,
+            online: input.online,
             role: input.role,
             login,
           }
@@ -657,7 +706,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         password: hashPassword(input.password),
         telegram: input.telegram.trim(),
         city: input.city.trim(),
-        hobbies: input.hobbies.map((hobby) => hobby.trim()).filter(Boolean),
+        hobbies: input.interests.map((hobby) => hobby.trim()).filter(Boolean),
+        interests: input.interests.map((hobby) => hobby.trim()).filter(Boolean),
+        seeking: input.seeking,
+        skills: input.skills.map((skill) => skill.trim()).filter(Boolean),
+        availability: input.availability,
+        goal: input.goal.trim(),
+        level: input.level,
+        online: input.online,
         role: input.role,
         createdAt: new Date().toISOString(),
       }
@@ -737,6 +793,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           telegram: profile.telegram ?? existing?.telegram ?? '',
           city: profile.city ?? existing?.city ?? '',
           hobbies: profile.hobbies ?? existing?.hobbies ?? [],
+          interests: profile.interests ?? existing?.interests ?? [],
+          seeking: profile.seeking ?? existing?.seeking ?? '',
+          skills: profile.skills ?? existing?.skills ?? [],
+          availability: profile.availability ?? existing?.availability ?? '',
+          goal: profile.goal ?? existing?.goal ?? '',
+          level: profile.level ?? existing?.level ?? '',
+          online: profile.online ?? existing?.online ?? false,
           role: profile.role ?? existing?.role ?? 'participant',
           isAdmin:
             profile.isAdmin ?? existing?.isAdmin ?? import.meta.env.VITE_FIREBASE_ADMIN_UID === uid,
@@ -750,7 +813,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const updateProfile = (
-      patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>,
+      patch: Partial<
+        Pick<
+          User,
+          | 'name'
+          | 'surname'
+          | 'city'
+          | 'telegram'
+          | 'hobbies'
+          | 'interests'
+          | 'seeking'
+          | 'skills'
+          | 'availability'
+          | 'goal'
+          | 'level'
+          | 'online'
+        >
+      >,
     ) => {
       if (!user) return
       const cleaned = { ...patch }
