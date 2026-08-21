@@ -583,7 +583,6 @@ export function subscribeApplicationsFb(
       query(
         collection(db, 'applications'),
         where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
       ),
     ),
   )
@@ -594,7 +593,6 @@ export function subscribeApplicationsFb(
         query(
           collection(db, 'applications'),
           where('teamId', 'in', chunk),
-          orderBy('createdAt', 'desc'),
         ),
       ),
     )
@@ -615,15 +613,14 @@ export function subscribeNotificationsFb(
   const q = query(
     collection(db, 'notifications'),
     where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
   )
   return onSnapshot(
     q,
     (snapshot) => {
       callback(
-        snapshot.docs.map(
-          (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Notification,
-        ),
+        snapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Notification)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       )
     },
     (error) => {
@@ -637,12 +634,13 @@ export async function markNotificationsReadFb(userId: string): Promise<void> {
   const q = query(
     collection(db, 'notifications'),
     where('userId', '==', userId),
-    where('read', '==', false),
   )
   const snapshot = await getDocs(q)
   const batch = writeBatch(db)
   snapshot.docs.forEach((docSnap) => {
-    batch.update(docSnap.ref, { read: true })
+    if (docSnap.data().read !== true) {
+      batch.update(docSnap.ref, { read: true })
+    }
   })
   await batch.commit()
 }
