@@ -64,7 +64,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncomin
           <button type="button" onClick={() => onOpenChat()} className="hover:text-brand">Чаты</button>
         </nav>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 md:gap-4">
           <button
             type="button"
             onClick={() => onOpenChat()}
@@ -215,7 +215,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncomin
               <button
                 type="button"
                 onClick={logout}
-                className="text-xs font-semibold text-muted hover:text-brand"
+                className="hidden text-xs font-semibold text-muted hover:text-brand sm:block"
               >
                 Выйти
               </button>

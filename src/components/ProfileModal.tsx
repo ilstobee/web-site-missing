@@ -48,6 +48,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     deleteTeam,
     deleteCategory,
     sphereName,
+    logout,
   } = useApp()
 
   const [tab, setTab] = useState<Tab>(initialTab ?? 'profile')
@@ -1173,6 +1174,22 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
               </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-cream px-6 py-4">
+          <p className="truncate text-[12px] text-muted">
+            Вы вошли как {user.name} {user.surname}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              onClose()
+            }}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-brand/30 px-4 py-2 text-[13px] font-semibold text-brand transition hover:bg-brand-soft"
+          >
+            Выйти
+          </button>
         </div>
       </div>
     </div>
