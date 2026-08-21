@@ -8,6 +8,7 @@ type Props = {
   open: boolean
   onClose(): void
   initialChatId?: string
+  onOpenProfile(userId: string): void
 }
 
 type ChatRef = {
@@ -32,7 +33,7 @@ function initialsOf(name: string): string {
     .join('')
 }
 
-export function ChatModal({ open, onClose, initialChatId }: Props) {
+export function ChatModal({ open, onClose, initialChatId, onOpenProfile }: Props) {
   const { db, user, allCategories, addChatMessage, editChatMessage, deleteChatMessage, chatRead, markChatRead, setActiveChatId } =
     useApp()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -705,13 +706,15 @@ const active = selectedId ? resolveChat(selectedId) : null
                             }
                           }}
                         >
-                          <div
-                            className={`text-[11px] font-bold ${
+                          <button
+                            type="button"
+                            onClick={() => message.userId && onOpenProfile(message.userId)}
+                            className={`text-[11px] font-bold hover:underline ${
                               mine ? 'text-white/80' : 'text-brand'
                             }`}
                           >
                             {messageAuthorName(message)}
-                          </div>
+                          </button>
                           {isEditing ? (
                             <div className="mt-1">
                               <input

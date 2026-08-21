@@ -25,7 +25,7 @@ export function ApplyModal({ team, onClose }: Props) {
     'w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white'
 
   const submit = () => {
-    if (!name.trim() || !surname.trim() || !city.trim() || !contacts.trim() || !telegram.trim()) {
+    if (!name.trim() || !surname.trim() || !city.trim() || !contacts.trim()) {
       return
     }
     addApplication({

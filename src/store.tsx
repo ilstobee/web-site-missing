@@ -660,7 +660,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!login) return 'Придумай логин'
       if (input.password.length < 8) return 'Пароль должен быть минимум 8 символов'
       if (!input.city.trim()) return 'Укажи свой город'
-      if (!input.telegram.trim()) return 'Укажи свой Telegram'
 
       if (firebaseEnabled) {
         const rawEmail = input.email?.trim() || ''

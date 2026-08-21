@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useApp } from './store'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
@@ -12,7 +12,12 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { Footer } from './components/Footer'
 import { AuthModal } from './components/AuthModal'
 import { ProfileModal } from './components/ProfileModal'
-import { ChatModal } from './components/ChatModal'
+const ChatModal = lazy(() =>
+  import('./components/ChatModal').then((m) => ({ default: m.ChatModal })),
+)
+const UserProfileModal = lazy(() =>
+  import('./components/UserProfileModal').then((m) => ({ default: m.UserProfileModal })),
+)
 import { VerifyBanner } from './components/VerifyBanner'
 
 export default function App() {
@@ -53,6 +58,9 @@ export default function App() {
     setProfileOpen(true)
   }
   const closeProfile = () => setProfileOpen(false)
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const openUserProfile = (uid: string) => setProfileUserId(uid)
+  const closeUserProfile = () => setProfileUserId(null)
   const openChat = (chatId?: string) => {
     setChatInitialId(chatId)
     setChatOpen(true)
@@ -116,7 +124,10 @@ export default function App() {
       <Footer />
       <AuthModal open={authOpen} onClose={closeAuth} onSuccess={closeAuth} />
       <ProfileModal open={profileOpen} onClose={closeProfile} initialTab={profileInitialTab} onOpenChat={openChat} />
-      <ChatModal open={chatOpen} onClose={closeChat} initialChatId={chatInitialId} />
+      <Suspense fallback={null}>
+        <ChatModal open={chatOpen} onClose={closeChat} initialChatId={chatInitialId} onOpenProfile={openUserProfile} />
+        <UserProfileModal userId={profileUserId} onClose={closeUserProfile} onOpenChat={openChat} />
+      </Suspense>
     </div>
   )
 }

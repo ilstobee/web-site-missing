@@ -333,12 +333,26 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                     onChange={(event) => setCity(event.target.value)}
                     className="w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
                   />
-                  <input
-                    value={telegram}
-                    placeholder="Telegram (@юзер)"
-                    onChange={(event) => setTelegram(event.target.value)}
-                    className="w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={telegram}
+                      placeholder="Telegram (@юзер)"
+                      onChange={(event) => setTelegram(event.target.value)}
+                      className="w-full flex-1 rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tg = telegram.replace(/^@/, '').trim()
+                        if (tg && typeof navigator !== 'undefined' && navigator.clipboard) {
+                          void navigator.clipboard.writeText(`https://t.me/${tg}`).catch(() => {})
+                        }
+                      }}
+                      className="shrink-0 rounded-xl border border-brand/30 px-3 py-2.5 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                    >
+                      Копировать
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-3 text-[11px] text-muted">
                   Измени нужные поля и нажми «Сохранить», чтобы обновить данные.
