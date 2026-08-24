@@ -646,7 +646,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                       Участники · {active.memberCount} из {active.capacity ?? '—'}
                     </p>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1">
                     {teamParticipants(active.id.slice(5))?.names.map((name, index) => (
                       <span
                         key={`${name}-${index}`}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Team } from '../data'
 import { useApp } from '../store'
 
@@ -6,6 +6,8 @@ type Props = {
   team: Team
   onClose(): void
 }
+
+const appliedKey = (userId: string) => `missing_applied_${userId}`
 
 export function ApplyModal({ team, onClose }: Props) {
   const { user, addApplication } = useApp()
@@ -20,6 +22,31 @@ export function ApplyModal({ team, onClose }: Props) {
   const [sent, setSent] = useState(false)
 
   const isOwn = !!user && team.creatorId === user.id
+
+  const alreadyApplied = useMemo(() => {
+    if (!user || isOwn) return false
+    try {
+      const raw = localStorage.getItem(appliedKey(user.id))
+      const list: string[] = raw ? (JSON.parse(raw) as string[]) : []
+      return list.includes(team.id)
+    } catch {
+      return false
+    }
+  }, [user, isOwn, team.id])
+
+  const markApplied = () => {
+    if (!user) return
+    try {
+      const raw = localStorage.getItem(appliedKey(user.id))
+      const list: string[] = raw ? (JSON.parse(raw) as string[]) : []
+      if (!list.includes(team.id)) {
+        list.push(team.id)
+        localStorage.setItem(appliedKey(user.id), JSON.stringify(list))
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white'
@@ -40,6 +67,7 @@ export function ApplyModal({ team, onClose }: Props) {
       review: review.trim(),
     })
     setSent(true)
+    markApplied()
   }
 
   return (
@@ -77,6 +105,21 @@ export function ApplyModal({ team, onClose }: Props) {
             <p className="mt-2 text-[15px] font-extrabold text-ink">Это твоя команда!</p>
             <p className="mt-1 text-[13px] text-muted">
               Нельзя подать заявку в свою собственную команду.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-dark"
+            >
+              Понятно
+            </button>
+          </div>
+        ) : alreadyApplied ? (
+          <div className="mt-6 rounded-2xl bg-brand-soft p-6 text-center">
+            <p className="text-2xl">✅</p>
+            <p className="mt-2 text-[15px] font-extrabold text-ink">Ты уже отправил(а) заявку</p>
+            <p className="mt-1 text-[13px] text-muted">
+              В эту команду уже есть твоя заявка. Когда организатор ответит — придёт уведомление.
             </p>
             <button
               type="button"
