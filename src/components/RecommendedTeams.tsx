@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Team } from '../data'
+import { recommendedTeams } from '../data'
 import { useApp } from '../store'
 import { SectionHeader } from './SectionHeader'
 import { TeamCard } from './TeamCard'
@@ -7,23 +8,33 @@ import { customToTeam } from './FeaturedTeams'
 import { ApplyModal } from './ApplyModal'
 import { TeamReviewModal } from './TeamReviewModal'
 
-export function RecommendedTeams({ onOpenChat }: { onOpenChat(chatId: string): void }) {
+export function RecommendedTeams({
+  city,
+  onOpenChat,
+}: {
+  city: string
+  onOpenChat(chatId: string): void
+}) {
   const { db, user } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
   const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
 
   const teams = useMemo(() => {
-    if (!user) return []
+    if (!user) {
+      const demo = city === 'all' ? recommendedTeams : recommendedTeams.filter((team) => team.city === city)
+      return demo.length > 0 ? demo : recommendedTeams
+    }
     const hobbies = user.hobbies.map((hobby) => hobby.toLowerCase())
     return db.customTeams
       .filter((team) => {
+        if (city !== 'all' && team.city.toLowerCase() !== city.toLowerCase()) return false
         if (user.city && team.city.toLowerCase() === user.city.toLowerCase()) return true
         const haystack = [team.category, ...team.tags].join(' ').toLowerCase()
         return hobbies.some((hobby) => haystack.includes(hobby))
       })
       .map(customToTeam)
-  }, [db.customTeams, user])
+  }, [db.customTeams, user, city])
 
   return (
     <section id="for-you" className="py-10">

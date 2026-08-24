@@ -15,9 +15,11 @@ function scoreTone(score: number): string {
 }
 
 export function QuickMatch({
+  city,
   onOpenAuth,
   onOpenChat,
 }: {
+  city: string
   onOpenAuth: () => void
   onOpenChat: (chatId?: string) => void
 }) {
@@ -25,21 +27,24 @@ export function QuickMatch({
   const [selected, setSelected] = useState<string[]>(user?.interests ?? [])
   const [seeking, setSeeking] = useState<Seeking>(user?.seeking || 'team')
   const [submitted, setSubmitted] = useState(false)
+  const [showAllInterests, setShowAllInterests] = useState(false)
 
   const candidates = useMemo(
     () =>
-      db.customTeams.map((team) =>
-        toMatchTeam({
-          id: team.id,
-          title: team.title,
-          category: team.category,
-          tags: team.tags,
-          city: team.city,
-          difficulty: team.difficulty,
-          description: team.description,
-        }),
-      ),
-    [db.customTeams],
+      db.customTeams
+        .filter((team) => city === 'all' || team.city.toLowerCase() === city.toLowerCase())
+        .map((team) =>
+          toMatchTeam({
+            id: team.id,
+            title: team.title,
+            category: team.category,
+            tags: team.tags,
+            city: team.city,
+            difficulty: team.difficulty,
+            description: team.description,
+          }),
+        ),
+    [db.customTeams, city],
   )
 
   const results = useMemo(() => {
@@ -77,7 +82,7 @@ export function QuickMatch({
           Мне интересно
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
-          {INTEREST_OPTIONS.map((interest) => {
+          {(showAllInterests ? INTEREST_OPTIONS : INTEREST_OPTIONS.slice(0, 8)).map((interest) => {
             const active = selected.includes(interest)
             return (
               <button
@@ -94,6 +99,15 @@ export function QuickMatch({
               </button>
             )
           })}
+          {INTEREST_OPTIONS.length > 8 ? (
+            <button
+              type="button"
+              onClick={() => setShowAllInterests((value) => !value)}
+              className="rounded-full border border-brand/40 bg-white px-3.5 py-2 text-[13px] font-semibold text-brand hover:bg-brand-soft"
+            >
+              {showAllInterests ? 'Скрыть' : `Ещё ${INTEREST_OPTIONS.length - 8}`}
+            </button>
+          ) : null}
         </div>
 
         <p className="mt-5 text-[13px] font-bold uppercase tracking-wide text-muted">Ищу</p>

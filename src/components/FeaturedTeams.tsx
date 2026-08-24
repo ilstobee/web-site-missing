@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { asset, socialAvatars } from '../data'
+import { asset, socialAvatars, featuredTeams, recommendedTeams } from '../data'
 import type { Team } from '../data'
 import { useApp } from '../store'
 import type { CustomTeam } from '../store'
@@ -9,6 +9,7 @@ import { ApplyModal } from './ApplyModal'
 import { TeamReviewModal } from './TeamReviewModal'
 
 type Props = {
+  city: string
   onOpenAuth(): void
   onOpenChat(chatId: string): void
 }
@@ -31,11 +32,10 @@ export function customToTeam(team: CustomTeam): Team {
   }
 }
 
-export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
+export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
   const { db, user } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
 
-  const [city, setCity] = useState('all')
   const [people, setPeople] = useState('all')
   const [difficulty, setDifficulty] = useState('all')
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
@@ -44,11 +44,6 @@ export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
   const allTeams = useMemo<Team[]>(
     () => db.customTeams.map(customToTeam),
     [db.customTeams],
-  )
-
-  const cities = useMemo(
-    () => Array.from(new Set(allTeams.map((team) => team.city))).sort(),
-    [allTeams],
   )
 
   const filtered = allTeams.filter((team) => {
@@ -61,6 +56,19 @@ export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
     }
     return true
   })
+
+  const demoTeams = useMemo<Team[]>(
+    () => [...featuredTeams, ...recommendedTeams],
+    [],
+  )
+
+  const demoByCity = useMemo(
+    () => (city === 'all' ? demoTeams : demoTeams.filter((team) => team.city === city)),
+    [demoTeams, city],
+  )
+
+  const usingDemo = filtered.length === 0
+  const display = usingDemo ? (demoByCity.length > 0 ? demoByCity : demoTeams) : filtered
 
   const handleApply = (team: Team) => {
     if (!user) {
@@ -84,17 +92,6 @@ export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
 
         <div className="mb-5 flex flex-wrap items-center gap-2.5">
           <label className="flex items-center gap-2 text-[13px] font-medium text-muted">
-            Город:
-            <select value={city} onChange={(event) => setCity(event.target.value)} className={selectClass}>
-              <option value="all">Все города</option>
-              {cities.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-[13px] font-medium text-muted">
             Людей:
             <select value={people} onChange={(event) => setPeople(event.target.value)} className={selectClass}>
               <option value="all">Любое</option>
@@ -112,14 +109,20 @@ export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
               <option value="Сложно">Сложно</option>
             </select>
           </label>
-          {filtered.length > 0 ? (
-            <span className="text-[12px] text-muted">Найдено: {filtered.length}</span>
+          {display.length > 0 ? (
+            <span className="text-[12px] text-muted">Найдено: {display.length}</span>
           ) : null}
         </div>
 
+        {usingDemo ? (
+          <p className="mb-3 rounded-2xl bg-blush px-4 py-2 text-[12px] font-medium text-muted">
+            Пока нет команд по выбранным фильтрам — показываем примеры со всего сайта.
+          </p>
+        ) : null}
+
         <div className="relative">
           <div ref={scroller} className="hide-scroll flex gap-4 overflow-x-auto pb-2">
-            {filtered.map((team) => (
+            {display.map((team) => (
               <TeamCard
                 key={team.id}
                 team={team}
@@ -128,11 +131,6 @@ export function FeaturedTeams({ onOpenAuth, onOpenChat }: Props) {
                 onChat={(item) => onOpenChat(`team:${item.id}`)}
               />
             ))}
-            {filtered.length === 0 ? (
-              <p className="rounded-2xl bg-blush px-6 py-10 text-[14px] font-medium text-muted">
-                Ничего не нашлось. Попробуй изменить фильтры.
-              </p>
-            ) : null}
           </div>
           <button
             type="button"

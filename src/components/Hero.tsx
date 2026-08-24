@@ -11,7 +11,15 @@ function Sparkle({ className }: { className: string }) {
   )
 }
 
-export function Hero() {
+export function Hero({
+  city,
+  cityOptions,
+  onCityChange,
+}: {
+  city: string
+  cityOptions: string[]
+  onCityChange(city: string): void
+}) {
   return (
     <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-10 pt-2 lg:grid-cols-[0.95fr_1.05fr] lg:gap-6 lg:px-8 lg:pb-12">
       <Sparkle className="left-[42%] top-[18%]" />
@@ -19,6 +27,21 @@ export function Hero() {
       <Sparkle className="bottom-[22%] left-[38%] h-3.5 w-3.5" />
 
       <div className="relative z-10 max-w-xl">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold text-muted">Город:</span>
+          <select
+            value={city}
+            onChange={(event) => onCityChange(event.target.value)}
+            className="rounded-full border border-ink/15 bg-white px-4 py-2 text-[13px] font-semibold text-ink outline-none transition focus:border-brand"
+          >
+            <option value="all">Все города</option>
+            {cityOptions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
         <h1 className="text-[2.6rem] font-black leading-[1.08] tracking-[-0.04em] text-ink sm:text-[3.4rem]">
           Найди <span className="text-brand">себя</span> —<br />
           найди <span className="text-brand">команду</span>
@@ -33,14 +56,14 @@ export function Hero() {
             href="#teams"
             className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(247,86,109,0.3)] transition hover:bg-brand-dark"
           >
-            Найти команду
+            Найти компанию
             <span aria-hidden>→</span>
           </a>
           <a
             href="#create"
             className="inline-flex items-center gap-2 rounded-full border border-brand bg-white px-6 py-3 text-sm font-semibold text-brand transition hover:bg-brand-soft"
           >
-            Создать команду
+            Создать встречу
             <span aria-hidden>+</span>
           </a>
         </div>

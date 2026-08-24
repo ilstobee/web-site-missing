@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useApp } from './store'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
@@ -21,7 +21,7 @@ const UserProfileModal = lazy(() =>
 import { VerifyBanner } from './components/VerifyBanner'
 
 export default function App() {
-  const { recordVisit, user, emailVerified } = useApp()
+  const { recordVisit, user, emailVerified, db } = useApp()
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
@@ -31,6 +31,39 @@ export default function App() {
   >('profile')
   const [activeSphere, setActiveSphere] = useState('travel')
   const [loading, setLoading] = useState(true)
+  const [city, setCity] = useState<string>(() => {
+    try {
+      return localStorage.getItem('missing_city') || 'all'
+    } catch {
+      return 'all'
+    }
+  })
+  const changeCity = (next: string) => {
+    setCity(next)
+    try {
+      localStorage.setItem('missing_city', next)
+    } catch {
+      // ignore
+    }
+  }
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>([
+      'Москва',
+      'Санкт-Петербург',
+      'Казань',
+      'Нижний Новгород',
+      'Екатеринбург',
+      'Краснодар',
+      'Самара',
+      'Новосибирск',
+      'Ростов-на-Дону',
+      'Йошкар-Ола',
+    ])
+    db.customTeams.forEach((team) => {
+      if (team.city && team.city.trim()) set.add(team.city.trim())
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'))
+  }, [db.customTeams])
   const openAuth = () => setAuthOpen(true)
   const closeAuth = () => setAuthOpen(false)
   const openProfile = () => {
@@ -108,17 +141,17 @@ export default function App() {
       <Header onOpenAuth={openAuth} onOpenLK={openProfile} onOpenApplications={openApplications} onOpenIncoming={openIncoming} onOpenChat={openHeaderChat} />
       {user && !emailVerified ? <VerifyBanner /> : null}
       <main>
-        <Hero />
-        <QuickMatch onOpenAuth={openAuth} onOpenChat={openChat} />
+        <Hero city={city} cityOptions={cityOptions} onCityChange={changeCity} />
+        <QuickMatch city={city} onOpenAuth={openAuth} onOpenChat={openChat} />
         <CategoryGrid
           activeId={activeSphere}
           onActiveChange={handleSphereChange}
           onOpenAuth={openAuth}
           onOpenChat={openChat}
         />
-        <FeaturedTeams onOpenAuth={openAuth} onOpenChat={openChat} />
+        <FeaturedTeams city={city} onOpenAuth={openAuth} onOpenChat={openChat} />
         <CreateBanner onOpenAuth={openAuth} />
-        <RecommendedTeams onOpenChat={openChat} />
+        <RecommendedTeams city={city} onOpenChat={openChat} />
         <StatsBar />
       </main>
       <Footer />
