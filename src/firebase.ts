@@ -206,9 +206,37 @@ export async function saveUserProfileFb(uid: string, profile: ProfilePatch): Pro
   await setDoc(doc(db, 'users', uid), buildPatch(profile), { merge: true })
 }
 
+function downscaleImageDataUrl(dataUrl: string, maxSize = 512, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height))
+      const w = Math.max(1, Math.round(img.width * scale))
+      const h = Math.max(1, Math.round(img.height * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(dataUrl)
+        return
+      }
+      ctx.drawImage(img, 0, 0, w, h)
+      try {
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      } catch {
+        resolve(dataUrl)
+      }
+    }
+    img.onerror = () => resolve(dataUrl)
+    img.src = dataUrl
+  })
+}
+
 export async function uploadAvatarFb(uid: string, dataUrl: string): Promise<string> {
   if (!storage) return dataUrl
-  const blob = await (await fetch(dataUrl)).blob()
+  const optimized = await downscaleImageDataUrl(dataUrl)
+  const blob = await (await fetch(optimized)).blob()
   const path = `avatars/${uid}.jpg`
   await uploadBytes(ref(storage, path), blob, { contentType: 'image/jpeg' })
   return getDownloadURL(ref(storage, path))

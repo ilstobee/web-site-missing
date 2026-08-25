@@ -116,7 +116,7 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
                 aria-pressed={isActive}
                 className={tileClass(category.tint, isActive)}
               >
-                <img src={category.icon} alt="" className="icon-even" />
+                <img src={category.icon} alt="" loading="lazy" decoding="async" className="icon-even" />
                 <span className="text-left text-[13px] font-semibold leading-tight text-ink">
                   {category.name}
                 </span>
@@ -162,7 +162,7 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
                   aria-pressed={isActive}
                   className={tileClass(category.tint, isActive)}
                 >
-                  <img src={category.icon} alt="" className="icon-even" />
+                <img src={category.icon} alt="" loading="lazy" decoding="async" className="icon-even" />
                   <span className="text-left text-[13px] font-semibold leading-tight text-ink">
                     {category.name}
                   </span>
@@ -175,7 +175,7 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
         <div className="mt-6 overflow-hidden rounded-[28px] bg-blush shadow-[0_8px_24px_rgba(80,40,40,0.04)]">
           <div className="border-b border-white/70 p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <img src={active.icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
+              <img src={active.icon} alt="" loading="lazy" decoding="async" className="h-10 w-10 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-[1.4rem] font-extrabold leading-tight text-ink">
@@ -263,6 +263,8 @@ export function CategoryGrid({ activeId, onActiveChange, onOpenAuth, onOpenChat 
                           <img
                             src={team.image}
                             alt=""
+                            loading="lazy"
+                            decoding="async"
                             className="h-12 w-16 shrink-0 rounded-lg object-cover"
                           />
                         ) : null}

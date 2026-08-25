@@ -39,7 +39,7 @@ export function SphereRibbon({ activeId, onSelect }: Props) {
                       : 'bg-white text-ink shadow-[0_4px_12px_rgba(80,40,40,0.06)] hover:ring-1 hover:ring-brand/40'
                   }`}
                 >
-                  <img src={category.icon} alt="" className="h-5 w-5 object-contain" />
+                  <img src={category.icon} alt="" loading="lazy" decoding="async" className="h-5 w-5 object-contain" />
                   {category.name}
                 </button>
               )

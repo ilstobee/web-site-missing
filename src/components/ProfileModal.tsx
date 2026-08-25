@@ -310,7 +310,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
               <div className="flex items-center gap-4">
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-brand-soft">
                   {avatar ? (
-                    <img src={avatar} alt="" className="h-full w-full object-cover" />
+                    <img src={avatar} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-2xl font-black text-brand">
                       {(user.name || '?').slice(0, 1).toUpperCase()}
@@ -1176,11 +1176,13 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                                 className="mt-2 block overflow-hidden rounded-xl border border-ink/10"
                                 title="Открыть обложку команды"
                               >
-                                <img
-                                  src={team.image}
-                                  alt="Обложка команды"
-                                  className="h-32 w-52 max-w-full object-cover"
-                                />
+                                 <img
+                                   src={team.image}
+                                   alt="Обложка команды"
+                                   loading="lazy"
+                                   decoding="async"
+                                   className="h-32 w-52 max-w-full object-cover"
+                                 />
                               </a>
                             ) : null}
                             <p className="mt-1 text-[11px] text-muted">

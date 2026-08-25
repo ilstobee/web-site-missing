@@ -175,7 +175,7 @@ export function CreateBanner({ onOpenAuth }: Props) {
                 />
                 {preview ? (
                   <div className="relative overflow-hidden rounded-xl border border-brand/30">
-                    <img src={preview} alt="Обложка команды" className="h-40 w-full object-cover" />
+                    <img src={preview} alt="Обложка команды" loading="lazy" decoding="async" className="h-40 w-full object-cover" />
                     <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-ink/50 p-2">
                       <span
                         className={`text-[11px] font-semibold ${uploading ? 'text-white' : 'text-white/90'}`}

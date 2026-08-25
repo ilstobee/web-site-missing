@@ -27,7 +27,7 @@ export function TeamCard({
   return (
     <article className="flex w-[270px] shrink-0 flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_10px_28px_rgba(80,40,40,0.08)]">
       <div className="relative h-[150px] overflow-hidden">
-        <img src={team.image} alt="" className="img-even" />
+        <img src={team.image} alt="" loading="lazy" decoding="async" className="img-even" />
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-brand/40 bg-white px-2 py-0.5 text-[11px] font-semibold text-ink">
           <svg viewBox="0 0 16 16" className="h-3 w-3 text-brand" fill="none" aria-hidden>
             <circle cx="8" cy="5.5" r="2.1" stroke="currentColor" strokeWidth="1.4" />
@@ -41,6 +41,8 @@ export function TeamCard({
               key={src}
               src={src}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="h-7 w-7 rounded-full object-cover ring-2 ring-white"
             />
           ))}

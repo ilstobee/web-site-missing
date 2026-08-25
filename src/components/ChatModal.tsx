@@ -576,7 +576,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                         }`}
                       >
                         {ref.icon ? (
-                          <img src={ref.icon} alt="" className="h-8 w-8 shrink-0 rounded-xl object-cover" />
+                          <img src={ref.icon} alt="" loading="lazy" decoding="async" className="h-8 w-8 shrink-0 rounded-xl object-cover" />
                         ) : (
                           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
                             {initialsOf(ref.name)}
@@ -618,7 +618,7 @@ const active = selectedId ? resolveChat(selectedId) : null
                 {active ? (
                   <>
                     {active.icon ? (
-                      <img src={active.icon} alt="" className="h-6 w-6 shrink-0 rounded-lg object-cover" />
+                      <img src={active.icon} alt="" loading="lazy" decoding="async" className="h-6 w-6 shrink-0 rounded-lg object-cover" />
                     ) : (
                       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
                         {initialsOf(active.name)}
@@ -721,6 +721,8 @@ const active = selectedId ? resolveChat(selectedId) : null
                               <img
                                 src={resolvePeerAvatar(message.userId)}
                                 alt=""
+                                loading="lazy"
+                                decoding="async"
                                 className="h-4 w-4 rounded-full object-cover"
                               />
                             ) : null}
@@ -779,6 +781,8 @@ const active = selectedId ? resolveChat(selectedId) : null
                                       <img
                                         src={att.url}
                                         alt={att.name ?? 'фото'}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="max-h-72 w-full rounded-xl object-cover transition hover:opacity-95"
                                       />
                                     </button>

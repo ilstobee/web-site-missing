@@ -87,6 +87,8 @@ export function Hero({
                 key={src}
                 src={src}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-9 w-9 rounded-full object-cover ring-2 ring-white"
               />
             ))}
@@ -107,6 +109,7 @@ export function Hero({
         <img
           src={asset('images/hero.png')}
           alt="Компания друзей на пуфах"
+          decoding="async"
           className="relative z-10 w-full object-contain"
         />
 
@@ -115,7 +118,7 @@ export function Hero({
             key={tag.label}
             className={`absolute z-20 flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-ink shadow-[0_8px_20px_rgba(80,40,40,0.12)] ${tag.className}`}
           >
-            <img src={tag.icon} alt="" className="h-5 w-5 object-contain" />
+            <img src={tag.icon} alt="" loading="lazy" decoding="async" className="h-5 w-5 object-contain" />
             {tag.label}
           </span>
         ))}

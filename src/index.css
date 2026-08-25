@@ -18,6 +18,23 @@ html {
   overflow-x: clip;
 }
 
+/* Оптимизация для Android: убираем задержку тапа (300ms) и зум по двойному тапу,
+   а также синий подсветочный прямоугольник при касании */
+button,
+a,
+[role="button"],
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  -webkit-tap-highlight-color: transparent;
+}
+
 @keyframes boot-spin {
   to {
     transform: rotate(360deg);
