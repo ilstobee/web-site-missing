@@ -33,7 +33,7 @@ export function customToTeam(team: CustomTeam): Team {
 }
 
 export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
-  const { db, user } = useApp()
+  const { db, user, withdrawApplication } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
 
   const [people, setPeople] = useState('all')
@@ -69,6 +69,11 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
 
   const usingDemo = filtered.length === 0
   const display = usingDemo ? (demoByCity.length > 0 ? demoByCity : demoTeams) : filtered
+
+  const appliedTeamIds = useMemo(
+    () => new Set(db.applications.filter((application) => application.userId === user?.id).map((application) => application.teamId)),
+    [db.applications, user?.id],
+  )
 
   const handleApply = (team: Team) => {
     if (!user) {
@@ -126,6 +131,8 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
               <TeamCard
                 key={team.id}
                 team={team}
+                applied={appliedTeamIds.has(team.id)}
+                onWithdraw={(item) => withdrawApplication(item.id)}
                 onApply={handleApply}
                 onReview={setReviewTeam}
                 onChat={(item) => onOpenChat(`team:${item.id}`)}

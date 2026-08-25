@@ -3,6 +3,7 @@ import { asset } from '../data'
 import { useApp, dmChatId } from '../store'
 import type { ChatMessage } from '../store'
 import { firebaseEnabled, getUserProfileFb } from '../firebase'
+import { ImageLightbox } from './ImageLightbox'
 
 type Props = {
   open: boolean
@@ -53,9 +54,11 @@ export function ChatModal({ open, onClose, initialChatId, onOpenProfile }: Props
       Notification.permission === 'granted',
   )
   const [peerNames, setPeerNames] = useState<Record<string, string>>({})
+  const [peerAvatars, setPeerAvatars] = useState<Record<string, string>>({})
   const peerTriedRef = useRef<Set<string>>(new Set())
 
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [lightbox, setLightbox] = useState<string | null>(null)
   const [recording, setRecording] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordChunksRef = useRef<Blob[]>([])
@@ -135,6 +138,7 @@ export function ChatModal({ open, onClose, initialChatId, onOpenProfile }: Props
         if (!alive) return
         const name = `${profile.name ?? ''} ${profile.surname ?? ''}`.trim()
         if (name) setPeerNames((prev) => ({ ...prev, [id]: name }))
+        if (profile.avatar) setPeerAvatars((prev) => ({ ...prev, [id]: profile.avatar as string }))
       })
     }
     return () => {
@@ -164,12 +168,18 @@ export function ChatModal({ open, onClose, initialChatId, onOpenProfile }: Props
     const cached = peerNames[peerId]
     if (cached) return cached
     const team = [...db.customTeams, ...db.pendingTeams].find(
-      (candidate) => candidate.creatorId === peerId,
+      (candidate) => candidate.creatorId !== undefined && candidate.creatorId === peerId,
     )
     if (team && team.creatorName) return team.creatorName
     const application = db.applications.find((candidate) => candidate.userId === peerId)
     if (application && application.userName) return application.userName
     return 'Пользователь'
+  }
+
+  const resolvePeerAvatar = (peerId: string): string => {
+    const peer = db.users.find((candidate) => candidate.id === peerId)
+    if (peer?.avatar) return peer.avatar
+    return peerAvatars[peerId] ?? ''
   }
 
   const resolveChat = (id: string): ChatRef | null => {
@@ -354,10 +364,11 @@ const active = selectedId ? resolveChat(selectedId) : null
 
   const closeMenu = () => setMenu(null)
 
-  const copyMessage = (message: ChatMessage) => {
-    if (message.text && typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(message.text).catch(() => {})
+  const copyText = (text: string) => {
+    if (text && typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(text).catch(() => {})
     }
+  }
     closeMenu()
   }
 
@@ -706,15 +717,24 @@ const active = selectedId ? resolveChat(selectedId) : null
                             }
                           }}
                         >
-                          <button
-                            type="button"
-                            onClick={() => message.userId && onOpenProfile(message.userId)}
-                            className={`text-[11px] font-bold hover:underline ${
-                              mine ? 'text-white/80' : 'text-brand'
-                            }`}
-                          >
-                            {messageAuthorName(message)}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            {message.userId && resolvePeerAvatar(message.userId) ? (
+                              <img
+                                src={resolvePeerAvatar(message.userId)}
+                                alt=""
+                                className="h-4 w-4 rounded-full object-cover"
+                              />
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => message.userId && onOpenProfile(message.userId)}
+                              className={`text-[11px] font-bold hover:underline ${
+                                mine ? 'text-white/80' : 'text-brand'
+                              }`}
+                            >
+                              {messageAuthorName(message)}
+                            </button>
+                          </div>
                           {isEditing ? (
                             <div className="mt-1">
                               <input
@@ -752,13 +772,17 @@ const active = selectedId ? resolveChat(selectedId) : null
                               {message.attachments?.map((att, index) => (
                                 <div key={index} className="mt-2">
                                   {att.kind === 'image' ? (
-                                    <a href={att.url} target="_blank" rel="noreferrer">
+                                    <button
+                                      type="button"
+                                      onClick={() => setLightbox(att.url)}
+                                      className="block w-full overflow-hidden rounded-xl"
+                                    >
                                       <img
                                         src={att.url}
                                         alt={att.name ?? 'фото'}
-                                        className="max-h-72 w-full rounded-xl object-cover"
+                                        className="max-h-72 w-full rounded-xl object-cover transition hover:opacity-95"
                                       />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <audio controls src={att.url} className="w-full" />
                                   )}
@@ -903,7 +927,7 @@ const active = selectedId ? resolveChat(selectedId) : null
               >
                 <button
                   type="button"
-                  onClick={() => menuMessage && copyMessage(menuMessage)}
+                  onClick={() => menuMessage && copyText(menuMessage.text)}
                   className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink transition hover:bg-cream"
                 >
                   Копировать
@@ -937,6 +961,7 @@ const active = selectedId ? resolveChat(selectedId) : null
           )
         })()
       ) : null}
+      {lightbox ? <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} /> : null}
     </div>
   )
 }

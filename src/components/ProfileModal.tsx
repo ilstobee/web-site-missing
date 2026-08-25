@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useApp, dmChatId, isValidEmail } from '../store'
 import type { UserRole } from '../store'
 import { fmtDate } from '../store'
@@ -8,6 +8,7 @@ import {
   AVAILABILITY_OPTIONS,
   type Seeking,
 } from '../matching'
+import { uploadAvatarFb } from '../firebase'
 
 type Props = {
   open: boolean
@@ -77,6 +78,10 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [emailDone, setEmailDone] = useState(false)
 
+  const [avatar, setAvatar] = useState('')
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (open && user) {
       setName(user.name)
@@ -89,8 +94,20 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       setAvailability(user.availability)
       setGoal(user.goal)
       setEmail(user.login)
+      setAvatar(user.avatar ?? '')
     }
   }, [open, user])
+
+  const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setAvatar(reader.result)
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
 
   if (!open) return null
   if (!user) return null
@@ -141,7 +158,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     .filter((visit) => visit.userId === user.id)
     .sort((a, b) => b.at.localeCompare(a.at))
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     const patch = {
       name,
       surname,
@@ -154,7 +171,22 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       availability,
       goal,
     }
-    updateProfile(patch)
+    let finalPatch: typeof patch & { avatar?: string } = patch
+    if (avatar && avatar.startsWith('data:') && user.id.startsWith('fb-')) {
+      setAvatarLoading(true)
+      try {
+        const url = await uploadAvatarFb(user.id.slice(3), avatar)
+        finalPatch = { ...patch, avatar: url }
+        setAvatar(url)
+      } catch {
+        finalPatch = { ...patch, avatar: avatar }
+      } finally {
+        setAvatarLoading(false)
+      }
+    } else if (avatar !== (user.avatar ?? '')) {
+      finalPatch = { ...patch, avatar: avatar }
+    }
+    updateProfile(finalPatch)
     setProfileSaved(true)
     window.setTimeout(() => setProfileSaved(false), 2500)
   }
@@ -275,6 +307,49 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
         <div className="max-h-[60vh] overflow-y-auto p-6">
           {tab === 'profile' ? (
             <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-brand-soft">
+                  {avatar ? (
+                    <img src={avatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-2xl font-black text-brand">
+                      {(user.name || '?').slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-extrabold text-ink">Фото профиля</p>
+                  <p className="mt-0.5 text-[12px] text-muted">
+                    Показывается в командах и чатах.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="rounded-full border border-brand/30 px-3 py-1.5 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
+                    >
+                      {avatar ? 'Заменить фото' : 'Загрузить фото'}
+                    </button>
+                    {avatar ? (
+                      <button
+                        type="button"
+                        onClick={() => setAvatar('')}
+                        className="rounded-full border border-ink/15 px-3 py-1.5 text-[12px] font-semibold text-muted transition hover:border-brand"
+                      >
+                        Удалить
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onAvatarChange}
+                  />
+                </div>
+              </div>
+
               <div>
                 <p className="text-sm font-extrabold text-ink">Роль на платформе</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">

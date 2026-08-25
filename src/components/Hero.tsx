@@ -1,4 +1,5 @@
 import { asset, heroTags, socialAvatars } from '../data'
+import { useApp } from '../store'
 
 function Sparkle({ className }: { className: string }) {
   return (
@@ -11,6 +12,15 @@ function Sparkle({ className }: { className: string }) {
   )
 }
 
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-2xl bg-white/70 px-3 py-2 text-center shadow-[0_6px_16px_rgba(80,40,40,0.06)]">
+      <div className="text-[20px] font-black text-ink">{value}</div>
+      <div className="text-[11px] font-medium leading-tight text-muted">{label}</div>
+    </div>
+  )
+}
+
 export function Hero({
   city,
   cityOptions,
@@ -20,6 +30,8 @@ export function Hero({
   cityOptions: string[]
   onCityChange(city: string): void
 }) {
+  const { db } = useApp()
+  const stats = db.stats
   return (
     <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-10 pt-2 lg:grid-cols-[0.95fr_1.05fr] lg:gap-6 lg:px-8 lg:pb-12">
       <Sparkle className="left-[42%] top-[18%]" />
@@ -82,6 +94,12 @@ export function Hero({
           <p className="text-sm font-medium text-ink">
             Присоединяйся к сообществу и найди свою команду ❤️
           </p>
+          <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <Stat value={stats.users} label="пользователей" />
+            <Stat value={stats.teams} label="команд создано" />
+            <Stat value={stats.unions} label="успешных объединений" />
+            <Stat value={stats.directions} label="направлений" />
+          </div>
         </div>
       </div>
 

@@ -15,7 +15,7 @@ export function RecommendedTeams({
   city: string
   onOpenChat(chatId: string): void
 }) {
-  const { db, user } = useApp()
+  const { db, user, withdrawApplication } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
   const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
@@ -36,6 +36,11 @@ export function RecommendedTeams({
       .map(customToTeam)
   }, [db.customTeams, user, city])
 
+  const appliedTeamIds = useMemo(
+    () => new Set(db.applications.filter((application) => application.userId === user?.id).map((application) => application.teamId)),
+    [db.applications, user?.id],
+  )
+
   return (
     <section id="for-you" className="py-10">
       <div className="mx-auto max-w-6xl px-5 lg:px-8">
@@ -53,6 +58,8 @@ export function RecommendedTeams({
                 <TeamCard
                   key={team.id}
                   team={team}
+                  applied={appliedTeamIds.has(team.id)}
+                  onWithdraw={(item) => withdrawApplication(item.id)}
                   onApply={setApplyTeam}
                   onReview={setReviewTeam}
                   onChat={(item) => onOpenChat(`team:${item.id}`)}

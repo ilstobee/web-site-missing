@@ -34,6 +34,7 @@ import {
   getDocs,
   writeBatch,
   deleteDoc,
+  increment,
   type Firestore,
   type Query,
   type DocumentData,
@@ -83,6 +84,7 @@ export type ProfilePatch = {
   role?: UserRole
   login?: string
   isAdmin?: boolean
+  avatar?: string
 }
 
 function buildPatch(profile: ProfilePatch): Record<string, unknown> {
@@ -102,6 +104,7 @@ function buildPatch(profile: ProfilePatch): Record<string, unknown> {
   if (profile.role !== undefined) patch.role = profile.role
   if (profile.login !== undefined) patch.login = profile.login
   if (profile.isAdmin !== undefined) patch.isAdmin = profile.isAdmin
+  if (profile.avatar !== undefined) patch.avatar = profile.avatar
   return patch
 }
 
@@ -201,6 +204,63 @@ export async function getUserProfileFb(uid: string): Promise<Partial<User>> {
 export async function saveUserProfileFb(uid: string, profile: ProfilePatch): Promise<void> {
   if (!db) return
   await setDoc(doc(db, 'users', uid), buildPatch(profile), { merge: true })
+}
+
+export async function uploadAvatarFb(uid: string, dataUrl: string): Promise<string> {
+  if (!storage) return dataUrl
+  const blob = await (await fetch(dataUrl)).blob()
+  const path = `avatars/${uid}.jpg`
+  await uploadBytes(ref(storage, path), blob, { contentType: 'image/jpeg' })
+  return getDownloadURL(ref(storage, path))
+}
+
+export type Stats = {
+  users: number
+  teams: number
+  unions: number
+  directions: number
+}
+
+const DEFAULT_STATS: Stats = { users: 0, teams: 0, unions: 0, directions: 0 }
+
+export async function ensureStatsFb(): Promise<Stats> {
+  if (!db) return DEFAULT_STATS
+  const refDoc = doc(db, 'stats', 'global')
+  const snapshot = await getDoc(refDoc)
+  if (!snapshot.exists()) {
+    await setDoc(refDoc, DEFAULT_STATS)
+    return DEFAULT_STATS
+  }
+  return { ...DEFAULT_STATS, ...(snapshot.data() as Partial<Stats>) }
+}
+
+export async function incrementStatFb(
+  field: keyof Stats,
+  delta: number,
+): Promise<void> {
+  if (!db) return
+  try {
+    await updateDoc(doc(db, 'stats', 'global'), { [field]: increment(delta) })
+  } catch {
+    await setDoc(doc(db, 'stats', 'global'), { ...DEFAULT_STATS, [field]: delta }, { merge: true })
+  }
+}
+
+export function subscribeStatsFb(callback: (stats: Stats) => void): () => void {
+  if (!db) return () => {}
+  return onSnapshot(
+    doc(db, 'stats', 'global'),
+    (snapshot) => {
+      if (snapshot.exists()) {
+        callback({ ...DEFAULT_STATS, ...(snapshot.data() as Partial<Stats>) })
+      } else {
+        callback(DEFAULT_STATS)
+      }
+    },
+    (error) => {
+      console.error('[missing] Статистика недоступна:', error)
+    },
+  )
 }
 
 function onSnapshotSafe(
@@ -567,6 +627,11 @@ export async function setApplicationStatusFb(
 ): Promise<void> {
   if (!db) return
   await updateDoc(doc(db, 'applications', id), { status })
+}
+
+export async function deleteApplicationFb(id: string): Promise<void> {
+  if (!db) return
+  await deleteDoc(doc(db, 'applications', id))
 }
 
 export function subscribeApplicationsFb(

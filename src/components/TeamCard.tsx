@@ -12,11 +12,15 @@ export function TeamCard({
   onApply,
   onReview,
   onChat,
+  applied = false,
+  onWithdraw,
 }: {
   team: Team
   onApply(team: Team): void
   onReview?(team: Team): void
   onChat?(team: Team): void
+  applied?: boolean
+  onWithdraw?(team: Team): void
 }) {
   const [saved, setSaved] = useState(false)
 
@@ -57,13 +61,23 @@ export function TeamCard({
           {team.description || 'Открой страницу команды и подай заявку!'}
         </p>
         <div className="mt-4 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onApply(team)}
-            className="rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
-          >
-            {actionLabel[team.action]}
-          </button>
+          {applied ? (
+            <button
+              type="button"
+              onClick={() => onWithdraw?.(team)}
+              className="rounded-full border border-ink/15 px-4 py-2 text-[13px] font-semibold text-muted transition hover:border-brand hover:text-brand"
+            >
+              Отозвать
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onApply(team)}
+              className="rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"
+            >
+              {actionLabel[team.action]}
+            </button>
+          )}
           <div className="flex items-center gap-1.5">
             {onReview ? (
               <button

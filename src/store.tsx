@@ -34,6 +34,7 @@ import {
   subscribeParticipantChatsFb,
   addApplicationFb,
   setApplicationStatusFb,
+  deleteApplicationFb,
   subscribeApplicationsFb,
   addNotificationFb,
   subscribeNotificationsFb,
@@ -41,6 +42,10 @@ import {
   updateTeamMembersFb,
   editMessageFb,
   deleteMessageFb,
+  incrementStatFb,
+  subscribeStatsFb,
+  ensureStatsFb,
+  type Stats,
 } from './firebase'
 
 export type Difficulty = 'Легко' | 'Средне' | 'Сложно'
@@ -69,6 +74,7 @@ export type User = {
   online: boolean
   role: UserRole
   isAdmin?: boolean
+  avatar?: string
   emailVerified?: boolean
   createdAt: string
 }
@@ -186,6 +192,7 @@ type DB = {
   chats: Record<string, ChatMessage[]>
   chatRead: Record<string, string>
   visits: Visit[]
+  stats: Stats
 }
 
 export type RegisterInput = {
@@ -290,6 +297,7 @@ const emptyDB: DB = {
   chats: {},
   chatRead: {},
   visits: [],
+  stats: { users: 0, teams: 0, unions: 0, directions: 0 },
 }
 
 function loadDB(): DB {
@@ -444,6 +452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           online: profile.online ?? false,
           role: profile.role ?? 'participant',
           isAdmin,
+          avatar: profile.avatar ?? '',
           emailVerified: fbUser.emailVerified,
           createdAt: profile.createdAt ?? new Date().toISOString(),
         }
@@ -476,6 +485,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let alive = true
     const unsubscribe = subscribeCategoriesFb((categories) => {
       if (alive) setDb((d) => ({ ...d, customCategories: categories }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    void ensureStatsFb()
+    const unsubscribe = subscribeStatsFb((stats) => {
+      if (alive) setDb((d) => ({ ...d, stats }))
     })
     return () => {
       alive = false
@@ -685,6 +707,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           await saveUserProfileFb(fbUser.uid, profile)
           markFbSession(fbUser.uid, profile)
+          void incrementStatFb('users', 1)
           return null
         } catch (error) {
           return fbErrorMessage(error)
@@ -823,6 +846,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           | 'goal'
           | 'level'
           | 'online'
+          | 'avatar'
         >
       >,
     ) => {
@@ -1010,6 +1034,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     }
 
+    const withdrawApplication = (teamId: string) => {
+      const application = db.applications.find(
+        (candidate) => candidate.teamId === teamId && candidate.userId === user?.id,
+      )
+      if (!application) return
+      mutate((d) => ({
+        ...d,
+        applications: d.applications.filter((candidate) => candidate.id !== application.id),
+      }))
+      if (firebaseEnabled) {
+        void deleteApplicationFb(application.id)
+      }
+    }
+
     const setApplicationStatus = (id: string, status: 'accepted' | 'rejected') => {
       const application = db.applications.find((candidate) => candidate.id === id)
       if (!application) return
@@ -1045,6 +1083,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (firebaseEnabled) {
         void setApplicationStatusFb(id, status)
         void updateTeamMembersFb(application.teamId, members)
+        if (status === 'accepted') void incrementStatFb('unions', 1)
         addNotificationFb(notification)
         mutate((d) => ({ ...applyTeamMembers(d), applications: nextApplications }))
         return
@@ -1076,6 +1115,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (adminId && adminId !== user.id) {
             notify(adminId, `Новая сфера на модерации: «${category.name}»`)
           }
+          void incrementStatFb('directions', 1)
           return id
         } catch {
           return null
@@ -1103,6 +1143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (adminId && adminId !== user.id) {
             notify(adminId, `Новая команда на модерации: «${team.title}»`)
           }
+          void incrementStatFb('teams', 1)
           return null
         } catch (error) {
           return fbErrorMessage(error)
@@ -1222,6 +1263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           console.error('[missing] Не удалось удалить команду:', error)
           window.alert('Не удалось удалить команду. Проверь правила доступа в Firebase.')
         })
+        void incrementStatFb('teams', -1)
       }
     }
 
@@ -1268,6 +1310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           console.error('[missing] Не удалось удалить сферу:', error)
           window.alert('Не удалось удалить сферу. Проверь правила доступа в Firebase.')
         })
+        void incrementStatFb('directions', -1)
       }
     }
 
@@ -1406,6 +1449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addTeamReview,
       removeTeamReview,
       addApplication,
+      withdrawApplication,
       setApplicationStatus,
       addCategory,
       addTeam,

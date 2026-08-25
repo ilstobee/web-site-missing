@@ -3,9 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Администратор (UID аккаунта cernyhila69@gmail.com)
+    // Модераторы (администраторы). Добавь сюда UID нужных аккаунтов.
     function isAdmin() {
-      return request.auth != null && request.auth.uid == 'ZqG4e6PRvrgLr14TxTbLiCS2J0x2';
+      return request.auth != null && request.auth.uid in [
+        'ZqG4e6PRvrgLr14TxTbLiCS2J0x2'
+      ];
     }
 
     // Профили: пользователь читает и пишет только свой профиль
@@ -66,7 +68,8 @@ service cloud.firestore {
     }
 
     // Заявки: читает сам заявитель и организатор команды,
-    // создаёт сам заявитель, статус меняет только организатор
+    // создаёт сам заявитель, статус меняет организатор,
+    // заявитель может отозвать свою заявку
     match /applications/{applicationId} {
       allow read: if request.auth != null
         && (resource.data.userId == 'fb-' + request.auth.uid
@@ -74,8 +77,11 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.userId == 'fb-' + request.auth.uid;
       allow update: if request.auth != null
-        && resource.data.creatorId == 'fb-' + request.auth.uid;
-      allow delete: if false;
+        && (resource.data.creatorId == 'fb-' + request.auth.uid
+            || resource.data.userId == 'fb-' + request.auth.uid);
+      allow delete: if request.auth != null
+        && (resource.data.creatorId == 'fb-' + request.auth.uid
+            || resource.data.userId == 'fb-' + request.auth.uid);
     }
 
     // Уведомления: пишет любой авторизованный (создание уведомления получателю),
@@ -87,6 +93,12 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.userId == 'fb-' + request.auth.uid;
       allow delete: if false;
+    }
+
+    // Публичная статистика сайта (счётчики в реальном времени)
+    match /stats/{statId} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }
