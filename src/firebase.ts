@@ -258,7 +258,7 @@ async function countDocs(
   value?: unknown,
 ): Promise<number> {
   if (!db) return 0
-  let q = collection(db, path)
+  let q: Query = collection(db, path)
   if (field !== undefined) {
     q = query(q, where(field, '==', value as never))
   }

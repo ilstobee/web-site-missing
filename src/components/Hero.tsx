@@ -20,7 +20,6 @@ export function Hero({
   cityOptions: string[]
   onCityChange(city: string): void
 }) {
-  const { db } = useApp()
   return (
     <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-10 pt-2 lg:grid-cols-[0.95fr_1.05fr] lg:gap-6 lg:px-8 lg:pb-12">
       <Sparkle className="left-[42%] top-[18%]" />
