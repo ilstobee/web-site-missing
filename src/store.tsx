@@ -251,7 +251,26 @@ type AppContextValue = {
   sendPasswordReset(email: string): Promise<string | null>
   resendVerification(): Promise<string | null>
   refreshVerification(): Promise<boolean>
-  updateProfile(patch: Partial<Pick<User, 'name' | 'surname' | 'city' | 'telegram' | 'hobbies'>>): void
+  updateProfile(
+    patch: Partial<
+      Pick<
+        User,
+        | 'name'
+        | 'surname'
+        | 'city'
+        | 'telegram'
+        | 'hobbies'
+        | 'interests'
+        | 'seeking'
+        | 'skills'
+        | 'availability'
+        | 'goal'
+        | 'level'
+        | 'online'
+        | 'avatar'
+      >
+    >,
+  ): void
   setUserRole(role: UserRole): void
   changePassword(current: string, next: string): string | null
   changeEmail(next: string): Promise<string | null>
@@ -260,6 +279,7 @@ type AppContextValue = {
   addTeamReview(teamId: string, teamTitle: string, sphereId: string, rating: number, text: string): void
   removeTeamReview(id: string): void
   addApplication(input: NewApplication): void
+  withdrawApplication(teamId: string): void
   setApplicationStatus(id: string, status: 'accepted' | 'rejected'): void
   addCategory(name: string): Promise<string | null>
   addTeam(input: NewTeam): Promise<string | null>
