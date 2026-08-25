@@ -369,8 +369,7 @@ const active = selectedId ? resolveChat(selectedId) : null
       void navigator.clipboard.writeText(text).catch(() => {})
     }
   }
-    closeMenu()
-  }
+
 
   const downscaleImage = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -927,7 +926,10 @@ const active = selectedId ? resolveChat(selectedId) : null
               >
                 <button
                   type="button"
-                  onClick={() => menuMessage && copyText(menuMessage.text)}
+                  onClick={() => {
+                    if (menuMessage) copyText(menuMessage.text)
+                    closeMenu()
+                  }}
                   className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink transition hover:bg-cream"
                 >
                   Копировать
