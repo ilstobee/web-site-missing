@@ -578,9 +578,10 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                 <button
                   type="button"
                   onClick={saveProfile}
-                  className="rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-dark"
+                  disabled={avatarLoading}
+                  className="rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
                 >
-                  Сохранить профиль
+                  {avatarLoading ? 'Загружаем фото…' : 'Сохранить профиль'}
                 </button>
                 {profileSaved ? (
                   <span className="ml-2 text-[13px] font-semibold text-brand">✓ Сохранено!</span>
