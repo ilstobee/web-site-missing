@@ -35,6 +35,7 @@ import {
   writeBatch,
   deleteDoc,
   increment,
+  getCountFromServer,
   type Firestore,
   type Query,
   type DocumentData,
@@ -251,15 +252,44 @@ export type Stats = {
 
 const DEFAULT_STATS: Stats = { users: 0, teams: 0, unions: 0, directions: 0 }
 
+async function countDocs(
+  path: string,
+  field?: string,
+  value?: unknown,
+): Promise<number> {
+  if (!db) return 0
+  let q = collection(db, path)
+  if (field !== undefined) {
+    q = query(q, where(field, '==', value as never))
+  }
+  try {
+    const snap = await getCountFromServer(q)
+    return snap.data().count
+  } catch {
+    return 0
+  }
+}
+
 export async function ensureStatsFb(): Promise<Stats> {
   if (!db) return DEFAULT_STATS
   const refDoc = doc(db, 'stats', 'global')
   const snapshot = await getDoc(refDoc)
-  if (!snapshot.exists()) {
-    await setDoc(refDoc, DEFAULT_STATS)
-    return DEFAULT_STATS
+  const current = snapshot.exists()
+    ? ({ ...DEFAULT_STATS, ...(snapshot.data() as Partial<Stats>) })
+    : null
+  // Считаем реальные значения один раз (если документа нет или он пустой),
+  // чтобы в счётчик попали ВСЕ уже созданные пользователи и команды.
+  if (!current || (current.users === 0 && current.teams === 0 && current.unions === 0 && current.directions === 0)) {
+    const real: Stats = {
+      users: await countDocs('users'),
+      teams: await countDocs('teams'),
+      unions: await countDocs('applications', 'status', 'accepted'),
+      directions: await countDocs('categories'),
+    }
+    await setDoc(refDoc, real)
+    return real
   }
-  return { ...DEFAULT_STATS, ...(snapshot.data() as Partial<Stats>) }
+  return current
 }
 
 export async function incrementStatFb(
@@ -535,6 +565,7 @@ export function fbErrorMessage(error: unknown): string {
 type ChatMeta = {
   kind: 'sphere' | 'team' | 'dm'
   participants?: string[]
+  teamId?: string
   updatedAt?: string
 }
 
@@ -547,6 +578,7 @@ export function ensureChatFb(chatId: string, meta: ChatMeta): void {
       kind: meta.kind,
       updatedAt: new Date().toISOString(),
       ...(meta.participants ? { participants: meta.participants } : {}),
+      ...(meta.teamId ? { teamId: meta.teamId } : {}),
     },
     { merge: true },
   )

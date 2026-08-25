@@ -10,18 +10,20 @@ service cloud.firestore {
       ];
     }
 
-    // Профили: пользователь читает и пишет только свой профиль
+    // Профили: любой авторизованный может читать профили (нужно для аватаров,
+    // имён участников и подсчёта статистики), пишет и удаляет — только свой.
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Команды:
-    //   read   — одобренные видит каждый, на модерации — только админ
+    //   read   — видит любой авторизованный (приложение само скрывает неподтверждённые)
     //   create — любой авторизованный (команда сразу получает статус pending)
     //   update — только админ (меняет статус: pending → approved / rejected)
+    //   delete — только админ либо создатель
     match /teams/{teamId} {
-      allow read: if resource == null || resource.data.status == 'approved' || isAdmin();
+      allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.status == 'pending'
         && request.resource.data.creatorId == 'fb-' + request.auth.uid;
@@ -32,7 +34,7 @@ service cloud.firestore {
 
     // Сферы (категории) — по той же схеме
     match /categories/{categoryId} {
-      allow read: if resource == null || resource.data.status == 'approved' || isAdmin();
+      allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.status == 'pending'
         && request.resource.data.creatorId == 'fb-' + request.auth.uid;
@@ -46,15 +48,17 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update: if request.auth != null;
-      allow delete: if isAdmin()
+      allow delete: if resource == null
+        || isAdmin()
         || (request.auth != null
           && resource.data.kind == 'team'
-          && resource.data.participants[0] != null
-          && exists(/databases/$(database)/documents/teams/$(resource.data.participants[0]))
-          && get(/databases/$(database)/documents/teams/$(resource.data.participants[0])).data.creatorId == 'fb-' + request.auth.uid);
+          && resource.data.teamId != null
+          && exists(/databases/$(database)/documents/teams/$(resource.data.teamId))
+          && get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.creatorId == 'fb-' + request.auth.uid);
     }
 
-    // Сообщения чата: читают все авторизованные, пишет и правит только автор
+    // Сообщения чата: читают все авторизованные, пишет и правит только автор,
+    // удаляет автор сообщения либо создатель команды (для чатов команды)
     match /chats/{chatId}/messages/{messageId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -64,15 +68,21 @@ service cloud.firestore {
           && resource.data.authorId == 'fb-' + request.auth.uid
           && request.resource.data.authorId == resource.data.authorId);
       allow delete: if isAdmin()
-        || (request.auth != null && resource.data.authorId == 'fb-' + request.auth.uid);
+        || (request.auth != null && resource.data.authorId == 'fb-' + request.auth.uid)
+        || (request.auth != null
+          && exists(/databases/$(database)/documents/chats/$(chatId))
+          && get(/databases/$(database)/documents/chats/$(chatId)).data.kind == 'team'
+          && get(/databases/$(database)/documents/chats/$(chatId)).data.teamId != null
+          && exists(/databases/$(database)/documents/teams/$(get(/databases/$(database)/documents/chats/$(chatId)).data.teamId))
+          && get(/databases/$(database)/documents/teams/$(get(/databases/$(database)/documents/chats/$(chatId)).data.teamId)).data.creatorId == 'fb-' + request.auth.uid);
     }
 
-    // Заявки: читает сам заявитель и организатор команды,
-    // создаёт сам заявитель, статус меняет организатор,
-    // заявитель может отозвать свою заявку
+    // Заявки: любой авторизованный видит ПРИНЯТЫЕ заявки (для счётчика объединений),
+    // а свою заявку и заявки на свою команду — полностью (включая на модерации)
     match /applications/{applicationId} {
       allow read: if request.auth != null
-        && (resource.data.userId == 'fb-' + request.auth.uid
+        && (resource.data.status == 'accepted'
+            || resource.data.userId == 'fb-' + request.auth.uid
             || resource.data.creatorId == 'fb-' + request.auth.uid);
       allow create: if request.auth != null
         && request.resource.data.userId == 'fb-' + request.auth.uid;

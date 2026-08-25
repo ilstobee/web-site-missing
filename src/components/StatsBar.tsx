@@ -1,4 +1,14 @@
-import { stats } from '../data'
+import { useApp } from '../store'
+import type { Stats } from '../firebase'
+
+type ItemKey = keyof Stats
+
+const items: { key: ItemKey; label: string; icon: string }[] = [
+  { key: 'users', label: 'активных пользователей', icon: 'users' },
+  { key: 'teams', label: 'команд создано', icon: 'teams' },
+  { key: 'unions', label: 'успешных объединений', icon: 'star' },
+  { key: 'directions', label: 'направлений', icon: 'globe' },
+]
 
 const icons: Record<string, string> = {
   users:
@@ -11,12 +21,14 @@ const icons: Record<string, string> = {
 }
 
 export function StatsBar() {
+  const { db } = useApp()
+  const stats = db.stats
   return (
-    <section className="pb-10">
+    <section className="pb-12 pt-2">
       <div className="mx-auto max-w-6xl px-5 lg:px-8">
-        <div className="grid grid-cols-2 gap-6 rounded-[24px] bg-blush px-6 py-7 sm:grid-cols-4">
-          {stats.map((item) => (
-            <div key={item.label} className="flex items-center gap-3">
+        <div className="grid grid-cols-2 gap-4 rounded-[24px] bg-blush px-6 py-7 shadow-[0_12px_30px_rgba(80,40,40,0.08)] sm:grid-cols-4">
+          {items.map((item) => (
+            <div key={item.key} className="flex items-center gap-3">
               <svg viewBox="0 0 24 24" className="h-8 w-8 shrink-0 text-brand" fill="none" aria-hidden>
                 <path
                   d={icons[item.icon]}
@@ -27,7 +39,8 @@ export function StatsBar() {
                 />
               </svg>
               <div>
-                <p className="text-[13px] font-bold leading-tight text-ink">
+                <p className="text-[20px] font-black leading-none text-ink">{stats[item.key]}</p>
+                <p className="mt-1 text-[13px] font-semibold leading-tight text-muted">
                   {item.label}
                 </p>
               </div>

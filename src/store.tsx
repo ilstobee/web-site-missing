@@ -1356,6 +1356,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : 'sphere'
         if (kind === 'dm') {
           ensureChatFb(chatId, { kind, participants: chatId.slice(3).split(':') })
+        } else if (kind === 'team') {
+          ensureChatFb(chatId, { kind, teamId: chatId.slice(5) })
         } else {
           ensureChatFb(chatId, { kind })
         }
