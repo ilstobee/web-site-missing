@@ -139,7 +139,6 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
                 </div>
 
                 {field('Ищет', SEEKING_OPTIONS.find((item) => item.value === profile.seeking)?.label)}
-                {field('Уровень', profile.level)}
                 {field('График', profile.availability)}
                 {field('Цель', profile.goal)}
 
@@ -162,7 +161,7 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Навыки</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted">О себе</p>
                   {profile.skills && profile.skills.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {profile.skills.map((item) => (

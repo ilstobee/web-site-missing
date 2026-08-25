@@ -201,8 +201,8 @@ export type RegisterInput = {
   skills: string[]
   availability: string
   goal: string
-  level: string
-  online: boolean
+  level?: string
+  online?: boolean
   role: UserRole
   email?: string
   phone?: string
@@ -678,8 +678,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             skills: input.skills.map((skill) => skill.trim()).filter(Boolean),
             availability: input.availability,
             goal: input.goal.trim(),
-            level: input.level,
-            online: input.online,
+            level: input.level ?? '',
+            online: input.online ?? false,
             role: input.role,
             login,
           }
@@ -707,8 +707,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         skills: input.skills.map((skill) => skill.trim()).filter(Boolean),
         availability: input.availability,
         goal: input.goal.trim(),
-        level: input.level,
-        online: input.online,
+        level: input.level ?? '',
+        online: input.online ?? false,
         role: input.role,
         createdAt: new Date().toISOString(),
       }

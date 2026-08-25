@@ -295,6 +295,11 @@ async function deleteChatFb(chatId: string): Promise<void> {
 
 export async function deleteTeamFb(id: string): Promise<void> {
   if (!db) return
+  try {
+    await deleteChatFb(`team:${id}`)
+  } catch (error) {
+    console.error('[missing] Не удалось удалить чат команды:', error)
+  }
   await deleteDoc(doc(db, 'teams', id))
   try {
     const applications = await getDocs(
@@ -305,11 +310,6 @@ export async function deleteTeamFb(id: string): Promise<void> {
     await batch.commit()
   } catch (error) {
     console.error('[missing] Не удалось удалить заявки команды:', error)
-  }
-  try {
-    await deleteChatFb(`team:${id}`)
-  } catch (error) {
-    console.error('[missing] Не удалось удалить чат команды:', error)
   }
 }
 

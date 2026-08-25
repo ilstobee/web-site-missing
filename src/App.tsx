@@ -47,7 +47,18 @@ export default function App() {
     }
   }
   const cityOptions = useMemo(() => {
-    const set = new Set<string>([
+    const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').replace(/–|—/g, '-')
+    const seen = new Set<string>()
+    const list: string[] = []
+    const add = (value: string) => {
+      const city = normalize(value)
+      if (!city) return
+      const key = city.toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      list.push(city)
+    }
+    ;[
       'Москва',
       'Санкт-Петербург',
       'Казань',
@@ -58,11 +69,11 @@ export default function App() {
       'Новосибирск',
       'Ростов-на-Дону',
       'Йошкар-Ола',
-    ])
+    ].forEach(add)
     db.customTeams.forEach((team) => {
-      if (team.city && team.city.trim()) set.add(team.city.trim())
+      if (team.city) add(team.city)
     })
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'))
+    return list.sort((a, b) => a.localeCompare(b, 'ru'))
   }, [db.customTeams])
   const openAuth = () => setAuthOpen(true)
   const closeAuth = () => setAuthOpen(false)

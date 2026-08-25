@@ -22,14 +22,14 @@ export function RecommendedTeams({
 
   const teams = useMemo(() => {
     if (!user) {
-      const demo = city === 'all' ? recommendedTeams : recommendedTeams.filter((team) => team.city === city)
+      const demo = city === 'all' ? recommendedTeams : recommendedTeams.filter((team) => team.city.trim().toLowerCase() === city.toLowerCase())
       return demo.length > 0 ? demo : recommendedTeams
     }
     const hobbies = user.hobbies.map((hobby) => hobby.toLowerCase())
     return db.customTeams
       .filter((team) => {
-        if (city !== 'all' && team.city.toLowerCase() !== city.toLowerCase()) return false
-        if (user.city && team.city.toLowerCase() === user.city.toLowerCase()) return true
+        if (city !== 'all' && team.city.trim().toLowerCase() !== city.toLowerCase()) return false
+        if (user.city && team.city.trim().toLowerCase() === user.city.toLowerCase()) return true
         const haystack = [team.category, ...team.tags].join(' ').toLowerCase()
         return hobbies.some((hobby) => haystack.includes(hobby))
       })

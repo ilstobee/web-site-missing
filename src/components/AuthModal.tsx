@@ -5,7 +5,6 @@ import { firebaseEnabled } from '../firebase'
 import {
   INTEREST_OPTIONS,
   SEEKING_OPTIONS,
-  LEVEL_OPTIONS,
   AVAILABILITY_OPTIONS,
   type Seeking,
 } from '../matching'
@@ -42,9 +41,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [skillInput, setSkillInput] = useState('')
   const [skills, setSkills] = useState<string[]>([])
   const [availability, setAvailability] = useState('')
-  const [level, setLevel] = useState('')
   const [goal, setGoal] = useState('')
-  const [online, setOnline] = useState(false)
   const [role, setRole] = useState<UserRole>('participant')
 
   const [error, setError] = useState<string | null>(null)
@@ -92,8 +89,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       skills,
       availability,
       goal,
-      level,
-      online,
       role,
     })
     if (err) {
@@ -181,9 +176,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setSkillInput('')
     setSkills([])
     setAvailability('')
-    setLevel('')
     setGoal('')
-    setOnline(false)
     setRole('participant')
     setError(null)
     setInfo(null)
@@ -233,7 +226,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     if (trimmed && !skills.includes(trimmed)) setSkills([...skills, trimmed])
     setSkillInput('')
   }
-  const toggleOnline = () => setOnline((value) => !value)
 
   const profileFields = (
     <div className="space-y-4">
@@ -285,10 +277,11 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       </div>
 
       <div>
-        <div className="flex gap-2">
+        <span className="text-[12px] font-bold text-ink">О себе</span>
+        <div className="mt-1 flex gap-2">
           <input
             className={inputClass}
-            placeholder="Навыки (например: дизайн, Python)"
+            placeholder="Расскажи о себе: чем интересуешься, что умеешь"
             value={skillInput}
             onChange={(event) => setSkillInput(event.target.value)}
             onKeyDown={(event) => {
@@ -323,37 +316,20 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="text-[12px] font-bold text-ink">График</span>
-          <select
-            className={inputClass}
-            value={availability}
-            onChange={(event) => setAvailability(event.target.value)}
-          >
-            <option value="">Не выбрано</option>
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-[12px] font-bold text-ink">Уровень</span>
-          <select
-            className={inputClass}
-            value={level}
-            onChange={(event) => setLevel(event.target.value)}
-          >
-            <option value="">Не выбрано</option>
-            {LEVEL_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div>
+        <span className="text-[12px] font-bold text-ink">График</span>
+        <select
+          className={`${inputClass} mt-1`}
+          value={availability}
+          onChange={(event) => setAvailability(event.target.value)}
+        >
+          <option value="">Не выбрано</option>
+          {AVAILABILITY_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>
@@ -367,25 +343,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={toggleOnline}
-        className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition ${
-          online ? 'border-brand bg-brand-soft text-brand' : 'border-ink/10 bg-white text-ink'
-        }`}
-      >
-        <span>Готов(а) работать онлайн</span>
-        <span
-          className={`h-5 w-9 rounded-full transition ${online ? 'bg-brand' : 'bg-ink/20'}`}
-          aria-hidden
-        >
-          <span
-            className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition ${
-              online ? 'translate-x-4' : 'translate-x-0.5'
-            }`}
-          />
-        </span>
-      </button>
     </div>
   )
 
@@ -459,13 +416,13 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4"
+      className="fixed inset-0 z-50 overflow-y-auto bg-ink/40 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-[0_24px_60px_rgba(80,40,40,0.25)]"
+        className="mx-auto my-4 w-full max-w-md max-h-[92vh] overflow-y-auto rounded-[28px] bg-white shadow-[0_24px_60px_rgba(80,40,40,0.25)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-cream px-6 py-4">

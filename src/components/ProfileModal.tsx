@@ -5,7 +5,6 @@ import { fmtDate } from '../store'
 import {
   INTEREST_OPTIONS,
   SEEKING_OPTIONS,
-  LEVEL_OPTIONS,
   AVAILABILITY_OPTIONS,
   type Seeking,
 } from '../matching'
@@ -67,8 +66,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   const [skills, setSkills] = useState<string[]>([])
   const [availability, setAvailability] = useState('')
   const [goal, setGoal] = useState('')
-  const [level, setLevel] = useState('')
-  const [online, setOnline] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -91,8 +88,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       setSkills(user.skills)
       setAvailability(user.availability)
       setGoal(user.goal)
-      setLevel(user.level)
-      setOnline(user.online)
       setEmail(user.login)
     }
   }, [open, user])
@@ -158,8 +153,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
       skills,
       availability,
       goal,
-      level,
-      online,
     }
     updateProfile(patch)
     setProfileSaved(true)
@@ -366,7 +359,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                   </p>
                   <p className="mt-1.5 text-[15px] font-extrabold text-ink">
                     {name} {surname}
-                    {level ? ` • ${level}` : ''}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {interests.map((item) => (
@@ -389,7 +381,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                   {goal ? <p className="mt-2 text-[13px] font-medium text-ink">🔥 {goal}</p> : null}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] font-medium text-muted">
                     {availability ? <span>🕐 {availability}</span> : null}
-                    {online ? <span>🌐 Онлайн</span> : null}
                     {seeking ? (
                       <span>
                         🎯 Ищу: {SEEKING_OPTIONS.find((option) => option.value === seeking)?.label.toLowerCase()}
@@ -443,10 +434,11 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                 </div>
 
                 <div>
-                  <div className="flex gap-2">
+                  <span className="text-[12px] font-bold text-ink">О себе</span>
+                  <div className="mt-1 flex gap-2">
                     <input
                       value={skillInput}
-                      placeholder="Навыки (дизайн, Python…)"
+                      placeholder="Расскажи о себе: чем интересуешься, что умеешь"
                       onChange={(event) => setSkillInput(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -481,37 +473,20 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className="text-[12px] font-bold text-ink">График</span>
-                    <select
-                      value={availability}
-                      onChange={(event) => setAvailability(event.target.value)}
-                      className="w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
-                    >
-                      <option value="">Не выбрано</option>
-                      {AVAILABILITY_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-[12px] font-bold text-ink">Уровень</span>
-                    <select
-                      value={level}
-                      onChange={(event) => setLevel(event.target.value)}
-                      className="w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
-                    >
-                      <option value="">Не выбрано</option>
-                      {LEVEL_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div>
+                  <span className="text-[12px] font-bold text-ink">График</span>
+                  <select
+                    value={availability}
+                    onChange={(event) => setAvailability(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
+                  >
+                    <option value="">Не выбрано</option>
+                    {AVAILABILITY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -524,26 +499,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                     className="mt-1 w-full resize-none rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white"
                   />
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setOnline((value) => !value)}
-                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition ${
-                    online ? 'border-brand bg-brand-soft text-brand' : 'border-ink/10 bg-white text-ink'
-                  }`}
-                >
-                  <span>Готов(а) работать онлайн</span>
-                  <span
-                    className={`h-5 w-9 rounded-full transition ${online ? 'bg-brand' : 'bg-ink/20'}`}
-                    aria-hidden
-                  >
-                    <span
-                      className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition ${
-                        online ? 'translate-x-4' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </span>
-                </button>
 
                 <button
                   type="button"

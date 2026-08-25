@@ -32,7 +32,7 @@ export function QuickMatch({
   const candidates = useMemo(
     () =>
       db.customTeams
-        .filter((team) => city === 'all' || team.city.toLowerCase() === city.toLowerCase())
+        .filter((team) => city === 'all' || team.city.trim().toLowerCase() === city.toLowerCase())
         .map((team) =>
           toMatchTeam({
             id: team.id,

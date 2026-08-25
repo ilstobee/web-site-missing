@@ -47,7 +47,7 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
   )
 
   const filtered = allTeams.filter((team) => {
-    if (city !== 'all' && team.city !== city) return false
+    if (city !== 'all' && team.city.trim().toLowerCase() !== city.toLowerCase()) return false
     if (difficulty !== 'all' && team.difficulty !== difficulty) return false
     if (people !== 'all') {
       if (people === '1-5' && (team.members < 1 || team.members > 5)) return false
