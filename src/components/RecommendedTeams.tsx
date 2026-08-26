@@ -33,8 +33,8 @@ export function RecommendedTeams({
         const haystack = [team.category, ...team.tags].join(' ').toLowerCase()
         return hobbies.some((hobby) => haystack.includes(hobby))
       })
-      .map(customToTeam)
-  }, [db.customTeams, user, city])
+      .map((team) => customToTeam(team, db.applications, db.userAvatars))
+  }, [db.customTeams, db.applications, db.userAvatars, user, city])
 
   const appliedTeamIds = useMemo(
     () => new Set(db.applications.filter((application) => application.userId === user?.id).map((application) => application.teamId)),

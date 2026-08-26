@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
-import { asset, socialAvatars, featuredTeams, recommendedTeams } from '../data'
+import { asset, featuredTeams, recommendedTeams } from '../data'
 import type { Team } from '../data'
 import { useApp } from '../store'
-import type { CustomTeam } from '../store'
+import type { Application, CustomTeam } from '../store'
 import { SectionHeader } from './SectionHeader'
 import { TeamCard } from './TeamCard'
 import { ApplyModal } from './ApplyModal'
@@ -14,14 +14,35 @@ type Props = {
   onOpenChat(chatId: string): void
 }
 
-export function customToTeam(team: CustomTeam): Team {
+// Аватары участников команды: реальные фото участников (принятых заявок),
+// либо аватар создателя, если участников ещё нет.
+export function teamParticipantAvatars(
+  team: CustomTeam,
+  applications: Application[],
+  avatars: Record<string, string>,
+): string[] {
+  const memberIds = applications
+    .filter((application) => application.teamId === team.id && application.status === 'accepted')
+    .map((application) => application.userId)
+  if (memberIds.length === 0 && team.creatorId) memberIds.push(team.creatorId)
+  return memberIds
+    .map((id) => avatars[id])
+    .filter((src): src is string => Boolean(src))
+    .slice(0, 4)
+}
+
+export function customToTeam(
+  team: CustomTeam,
+  applications: Application[],
+  avatars: Record<string, string>,
+): Team {
   return {
     id: team.id,
     title: team.title,
     image: team.image || asset('images/teams/team-startup.png'),
     members: team.members,
     capacity: team.capacity,
-    avatars: socialAvatars.slice(0, 3),
+    avatars: teamParticipantAvatars(team, applications, avatars),
     tags: team.tags.length > 0 ? team.tags : [team.category],
     description: team.description,
     action: 'join',
@@ -31,6 +52,7 @@ export function customToTeam(team: CustomTeam): Team {
     creatorId: team.creatorId,
   }
 }
+
 
 export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
   const { db, user, withdrawApplication } = useApp()
@@ -42,8 +64,8 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
   const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
 
   const allTeams = useMemo<Team[]>(
-    () => db.customTeams.map(customToTeam),
-    [db.customTeams],
+    () => db.customTeams.map((team) => customToTeam(team, db.applications, db.userAvatars)),
+    [db.customTeams, db.applications, db.userAvatars],
   )
 
   const filtered = allTeams.filter((team) => {

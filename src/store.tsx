@@ -193,6 +193,7 @@ type DB = {
   chatRead: Record<string, string>
   visits: Visit[]
   stats: Stats
+  userAvatars: Record<string, string>
 }
 
 export type RegisterInput = {
@@ -318,6 +319,7 @@ const emptyDB: DB = {
   chatRead: {},
   visits: [],
   stats: { users: 0, teams: 0, unions: 0, directions: 0 },
+  userAvatars: {},
 }
 
 function loadDB(): DB {
@@ -479,7 +481,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const users = existing
           ? d.users.map((candidate) => (candidate.id === fbId ? record : candidate))
           : [...d.users, record]
-        return { ...d, users, sessionUserId: fbId }
+        return {
+          ...d,
+          users,
+          sessionUserId: fbId,
+          userAvatars: profile.avatar
+            ? { ...d.userAvatars, [fbId]: profile.avatar }
+            : d.userAvatars,
+        }
       })
     })
     return () => {
@@ -527,6 +536,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!firebaseEnabled) return
+    const ids = new Set<string>()
+    if (user?.id) ids.add(user.id)
+    db.customTeams.forEach((team) => {
+      if (team.creatorId) ids.add(team.creatorId)
+    })
+    db.applications.forEach((application) => {
+      if (application.userId) ids.add(application.userId)
+      if (application.creatorId) ids.add(application.creatorId)
+    })
+    let alive = true
+    ;(async () => {
+      const next = { ...dbRef.current.userAvatars }
+      let changed = false
+      for (const id of ids) {
+        if (fetchedAvatarsRef.current.has(id)) continue
+        fetchedAvatarsRef.current.add(id)
+        const uid = id.startsWith('fb-') ? id.slice(3) : id
+        try {
+          const profile = await getUserProfileFb(uid)
+          const avatar = profile.avatar
+          if (avatar && next[id] !== avatar) {
+            next[id] = avatar as string
+            changed = true
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (alive && changed) {
+        setDb((d) => ({ ...d, userAvatars: next }))
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [firebaseEnabled, db.applications, db.customTeams, user])
+
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
     let alive = true
     const unsubscribe = subscribePendingTeamsFb((teams) => {
       if (alive) setDb((d) => ({ ...d, pendingTeams: teams }))
@@ -563,6 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const allCategoriesRef = useRef<Category[]>(allCategories)
   allCategoriesRef.current = allCategories
   const activeChatRef = useRef<string | null>(null)
+  const fetchedAvatarsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!firebaseEnabled) return
