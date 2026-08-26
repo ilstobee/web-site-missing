@@ -1,4 +1,4 @@
-import { asset, heroTags, socialAvatars } from '../data'
+import { asset, heroTags } from '../data'
 
 function Sparkle({ className }: { className: string }) {
   return (
@@ -68,23 +68,9 @@ export function Hero({
           </a>
         </div>
 
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <div className="flex -space-x-2.5">
-            {socialAvatars.map((src) => (
-              <img
-                key={src}
-                src={src}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-9 w-9 rounded-full object-cover ring-2 ring-white"
-              />
-            ))}
-          </div>
-          <p className="text-sm font-medium text-ink">
-            Присоединяйся к сообществу и найди свою команду ❤️
-          </p>
-        </div>
+        <p className="mt-7 max-w-[26rem] text-base font-semibold leading-snug text-ink sm:text-lg">
+          Присоединяйся к сообществу и найди свою команду ❤️
+        </p>
       </div>
 
       <div className="relative mx-auto w-full max-w-[560px]">
