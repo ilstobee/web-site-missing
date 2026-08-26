@@ -1219,6 +1219,58 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                   </div>
                 )}
               </div>
+
+              <div>
+                <p className="text-sm font-extrabold text-ink">
+                  Все команды{' '}
+                  <span className="text-muted">
+                    ({db.pendingTeams.length + db.customTeams.length})
+                  </span>
+                </p>
+                {db.pendingTeams.length + db.customTeams.length === 0 ? (
+                  <p className="mt-3 rounded-2xl bg-cream p-5 text-center text-[13px] text-muted">
+                    Команд пока нет.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {[...db.pendingTeams, ...db.customTeams].map((team) => (
+                      <article key={team.id} className="rounded-2xl bg-cream p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-ink">{team.title}</p>
+                            <p className="mt-0.5 text-[12px] text-muted">
+                              {team.category} · {team.city} · {team.difficulty}
+                            </p>
+                            <p className="mt-1 text-[11px] text-muted">
+                              {team.status === 'pending' ? 'На модерации' : 'Опубликована'} · Создал:{' '}
+                              {team.creatorName} · {fmtDate(team.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {team.status === 'pending' ? (
+                              <button
+                                type="button"
+                                onClick={() => approveTeam(team.id)}
+                                className="rounded-full bg-brand px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-brand-dark"
+                              >
+                                Одобрить
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => deleteTeam(team.id)}
+                              className="rounded-full border border-ink/10 px-4 py-2 text-[12px] font-semibold text-muted transition hover:border-brand hover:bg-[#fde4df] hover:text-brand"
+                              title="Удалить команду"
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
