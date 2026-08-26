@@ -537,7 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!firebaseEnabled) return
     const ids = new Set<string>()
-    if (user?.id) ids.add(user.id)
+    if (db.sessionUserId) ids.add(db.sessionUserId)
     db.customTeams.forEach((team) => {
       if (team.creatorId) ids.add(team.creatorId)
     })
@@ -571,7 +571,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false
     }
-  }, [firebaseEnabled, db.applications, db.customTeams, user])
+  }, [firebaseEnabled, db.applications, db.customTeams, db.sessionUserId])
 
 
   useEffect(() => {
