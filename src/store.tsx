@@ -45,6 +45,8 @@ import {
   incrementStatFb,
   subscribeStatsFb,
   ensureStatsFb,
+  subscribeUserRatingsFb,
+  saveUserRatingFb,
   type Stats,
 } from './firebase'
 
@@ -178,6 +180,15 @@ export type Visit = {
   at: string
 }
 
+export type UserRating = {
+  id: string
+  targetId: string
+  fromId: string
+  teamId: string
+  rating: number
+  createdAt: string
+}
+
 type DB = {
   users: User[]
   sessionUserId: string | null
@@ -194,6 +205,7 @@ type DB = {
   visits: Visit[]
   stats: Stats
   userAvatars: Record<string, string>
+  userRatings: UserRating[]
 }
 
 export type RegisterInput = {
@@ -294,11 +306,13 @@ type AppContextValue = {
   editChatMessage(chatId: string, messageId: string, text: string): void
   deleteChatMessage(chatId: string, messageId: string): void
   recordVisit(sphereId: string): void
+  rateUser(targetId: string, teamId: string, rating: number): void
   markAllNotificationsRead(): void
   markChatRead(chatId: string): void
   setActiveChatId(chatId: string | null): void
   chatRead: Record<string, string>
   sphereStats(sphereId: string): { rating: number; reviews: number; activity: number }
+  userRating(userId: string): { rating: number; count: number }
   sphereName(sphereId: string): string
 }
 
@@ -320,6 +334,7 @@ const emptyDB: DB = {
   visits: [],
   stats: { users: 0, teams: 0, unions: 0, directions: 0 },
   userAvatars: {},
+  userRatings: [],
 }
 
 function loadDB(): DB {
@@ -527,6 +542,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void ensureStatsFb()
     const unsubscribe = subscribeStatsFb((stats) => {
       if (alive) setDb((d) => ({ ...d, stats }))
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!firebaseEnabled) return
+    let alive = true
+    const unsubscribe = subscribeUserRatingsFb((ratings) => {
+      if (alive) setDb((d) => ({ ...d, userRatings: ratings }))
     })
     return () => {
       alive = false
@@ -1461,6 +1488,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     }
 
+    const rateUser = (targetId: string, teamId: string, rating: number) => {
+      if (!user) return
+      const clamped = Math.max(1, Math.min(5, Math.round(rating)))
+      const existing = dbRef.current.userRatings.find(
+        (item) => item.targetId === targetId && item.fromId === user.id && item.teamId === teamId,
+      )
+      if (existing) {
+        mutate((d) => ({
+          ...d,
+          userRatings: d.userRatings.map((item) =>
+            item.id === existing.id ? { ...item, rating: clamped } : item,
+          ),
+        }))
+        if (firebaseEnabled) void saveUserRatingFb(existing.id, targetId, user.id, teamId, clamped)
+        return
+      }
+      const ratingItem: UserRating = {
+        id: uid(),
+        targetId,
+        fromId: user.id,
+        teamId,
+        rating: clamped,
+        createdAt: new Date().toISOString(),
+      }
+      mutate((d) => ({ ...d, userRatings: [ratingItem, ...d.userRatings] }))
+      if (firebaseEnabled) {
+        void saveUserRatingFb(ratingItem.id, targetId, user.id, teamId, clamped)
+      }
+    }
+
     const markAllNotificationsRead = () => {
       if (!user) return
       if (firebaseEnabled) {
@@ -1500,6 +1557,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const sphereName = (sphereId: string) =>
       allCategories.find((category) => category.id === sphereId)?.name ?? sphereId
 
+    const userRating = (userId: string) => {
+      const ratings = dbRef.current.userRatings.filter((item) => item.targetId === userId)
+      if (ratings.length === 0) return { rating: 0, count: 0 }
+      const sum = ratings.reduce((acc, item) => acc + item.rating, 0)
+      return { rating: sum / ratings.length, count: ratings.length }
+    }
+
     return {
       db,
       user,
@@ -1535,11 +1599,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       editChatMessage,
       deleteChatMessage,
       recordVisit,
+      rateUser,
       markAllNotificationsRead,
       markChatRead,
       setActiveChatId,
       chatRead: db.chatRead,
       sphereStats,
+      userRating,
       sphereName,
     }
   }, [db, user, allCategories, emailVerified])

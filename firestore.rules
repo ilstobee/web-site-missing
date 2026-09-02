@@ -110,5 +110,17 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null;
     }
+
+    // Оценки пользователей звёздами (рейтинг организаторов и участников):
+    // читает любой авторизованный, пишет/удаляет только автор оценки
+    match /userRatings/{ratingId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.fromId == 'fb-' + request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow delete: if request.auth != null
+        && resource.data.fromId == 'fb-' + request.auth.uid;
+    }
   }
 }

@@ -50,6 +50,7 @@ import type {
   ModerationStatus,
   Notification,
   User,
+  UserRating,
   UserRole,
 } from './store'
 
@@ -319,6 +320,36 @@ export function subscribeStatsFb(callback: (stats: Stats) => void): () => void {
       console.error('[missing] Статистика недоступна:', error)
     },
   )
+}
+
+export function subscribeUserRatingsFb(callback: (ratings: UserRating[]) => void): () => void {
+  if (!db) return () => {}
+  const q = query(collection(db, 'userRatings'), orderBy('createdAt', 'asc'))
+  return onSnapshotSafe(q, (snapshot) => {
+    callback(
+      snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as UserRating),
+    )
+  })
+}
+
+export async function saveUserRatingFb(
+  id: string,
+  targetId: string,
+  fromId: string,
+  teamId: string,
+  rating: number,
+): Promise<void> {
+  if (!db) return
+  await setDoc(
+    doc(db, 'userRatings', id),
+    { targetId, fromId, teamId, rating, createdAt: new Date().toISOString() },
+    { merge: true },
+  )
+}
+
+export function deleteUserRatingFb(id: string): Promise<void> {
+  if (!db) return Promise.resolve()
+  return deleteDoc(doc(db, 'userRatings', id))
 }
 
 function onSnapshotSafe(

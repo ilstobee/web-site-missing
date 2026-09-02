@@ -13,8 +13,21 @@ function initialsOf(name: string, surname: string): string {
   return `${name[0] ?? ''}${surname[0] ?? ''}`.toUpperCase()
 }
 
+function UserStars({ value }: { value: number }) {
+  const rounded = Math.round(value)
+  return (
+    <span className="flex items-center gap-0.5 text-sm leading-none" aria-label={`Рейтинг ${value}`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} className={n <= rounded ? 'text-brand' : 'text-muted/25'}>
+          ★
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
-  const { user } = useApp()
+  const { user, userRating } = useApp()
   const [profile, setProfile] = useState<Partial<User> | null>(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -109,6 +122,14 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
                     {profile.city && profile.city.trim() ? profile.city : 'Город не указан'}
                     {profile.role === 'organizer' ? ' · Организатор' : ''}
                   </p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <UserStars value={userRating(userId).rating} />
+                    <span className="text-[11px] text-muted">
+                      {userRating(userId).count > 0
+                        ? `${userRating(userId).rating.toFixed(1)} · ${userRating(userId).count} оценок`
+                        : 'нет оценок'}
+                    </span>
+                  </div>
                 </div>
               </div>
 

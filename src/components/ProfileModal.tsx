@@ -30,6 +30,27 @@ const statusLabel = {
   rejected: 'Отклонена',
 } as const
 
+function Stars({ value, onChange }: { value: number; onChange?: (next: number) => void }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          disabled={!onChange}
+          onClick={() => onChange?.(n)}
+          className={`text-sm leading-none ${onChange ? 'cursor-pointer transition hover:scale-110' : 'cursor-default'} ${
+            n <= value ? 'text-brand' : 'text-muted/25'
+          }`}
+          aria-label={`Оценка ${n}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
   const {
     user,
@@ -48,6 +69,8 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     deleteTeam,
     deleteCategory,
     sphereName,
+    rateUser,
+    userRating,
     logout,
   } = useApp()
 
@@ -141,6 +164,8 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     db.applications
       .filter((application) => application.teamId === teamId && application.status === 'pending')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  const ratingOf = (targetId: string) => userRating(targetId).rating
 
   const incoming = db.applications
     .filter((application) => application.creatorId === user.id)
@@ -736,6 +761,9 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
                                   {member.name}
                                 </span>
+                                <div className="shrink-0" title="Рейтинг участника">
+                                  <Stars value={ratingOf(member.userId)} onChange={(n) => rateUser(member.userId, team.id, n)} />
+                                </div>
                                 <span className="hidden truncate text-[11px] text-muted sm:block">
                                   {member.city}
                                 </span>
