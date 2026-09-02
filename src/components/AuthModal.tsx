@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useApp, isValidEmail, ERR_NOT_REGISTERED } from '../store'
-import type { UserRole } from '../store'
 import { firebaseEnabled } from '../firebase'
 import {
   INTEREST_OPTIONS,
@@ -42,7 +41,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [skills, setSkills] = useState<string[]>([])
   const [availability, setAvailability] = useState('')
   const [goal, setGoal] = useState('')
-  const [role, setRole] = useState<UserRole>('participant')
 
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -89,7 +87,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       skills,
       availability,
       goal,
-      role,
+      role: 'participant',
     })
     if (err) {
       setError(err)
@@ -177,7 +175,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     setSkills([])
     setAvailability('')
     setGoal('')
-    setRole('participant')
     setError(null)
     setInfo(null)
     setVerifyEmail('')
@@ -185,34 +182,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
 
   const inputClass =
     'w-full rounded-xl border border-ink/10 bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:bg-white'
-
-  const roleSelect = (
-    <div className="rounded-xl bg-cream p-3">
-      <p className="text-[12px] font-bold text-ink">Кем ты хочешь быть?</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        {(
-          [
-            { value: 'participant', title: 'Участник', desc: 'Ищу команду и принимаю заявки' },
-            { value: 'organizer', title: 'Организатор', desc: 'Создаю команды и собираю людей' },
-          ] as const
-        ).map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => setRole(option.value)}
-            className={`rounded-xl border px-3 py-2.5 text-left transition ${
-              role === option.value
-                ? 'border-brand bg-white shadow-sm'
-                : 'border-ink/10 bg-white/50 hover:border-brand/40'
-            }`}
-          >
-            <span className="block text-[13px] font-extrabold text-ink">{option.title}</span>
-            <span className="mt-0.5 block text-[11px] leading-snug text-muted">{option.desc}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
 
   const toggleInterest = (interest: string) => {
     setInterests((current) =>
@@ -591,7 +560,6 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              {roleSelect}
               {profileFields}
               <button
                 type="submit"

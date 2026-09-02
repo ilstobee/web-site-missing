@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useApp, dmChatId, isValidEmail } from '../store'
-import type { UserRole } from '../store'
 import { fmtDate } from '../store'
 import {
   INTEREST_OPTIONS,
@@ -9,6 +8,7 @@ import {
   type Seeking,
 } from '../matching'
 import { uploadAvatarFb } from '../firebase'
+import { TelegramField } from './TelegramField'
 
 type Props = {
   open: boolean
@@ -18,11 +18,6 @@ type Props = {
 }
 
 type Tab = 'profile' | 'teams' | 'applications' | 'incoming' | 'reviews' | 'history' | 'moderation'
-
-const roleLabel: Record<UserRole, string> = {
-  organizer: 'Организатор',
-  participant: 'Участник',
-}
 
 const statusLabel = {
   pending: 'На рассмотрении',
@@ -56,7 +51,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     user,
     db,
     updateProfile,
-    setUserRole,
     changePassword,
     changeEmail,
     setApplicationStatus,
@@ -71,6 +65,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     sphereName,
     rateUser,
     userRating,
+    isOrganizer,
     logout,
   } = useApp()
 
@@ -265,7 +260,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
     { id: 'history', label: 'История сфер', badge: myVisits.length },
   ]
 
-  if (user.role === 'organizer') {
+  if (isOrganizer()) {
     tabs.push({
       id: 'incoming',
       label: 'Входящие',
@@ -292,7 +287,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
           <div className="min-w-0">
             <p className="text-lg font-extrabold text-ink">Личный кабинет</p>
             <p className="truncate text-[12px] text-muted">
-              {user.name} {user.surname} · {roleLabel[user.role]}
+              {user.name} {user.surname} · {isOrganizer() ? 'Организатор' : 'Участник'}
             </p>
           </div>
           <button
@@ -372,36 +367,6 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                     className="hidden"
                     onChange={onAvatarChange}
                   />
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-extrabold text-ink">Роль на платформе</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      { value: 'participant', title: 'Участник', desc: 'Ищу команду и принимаю заявки' },
-                      { value: 'organizer', title: 'Организатор', desc: 'Создаю команды и отправляю заявки' },
-                    ] as const
-                  ).map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setUserRole(option.value)}
-                      className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                        user.role === option.value
-                          ? 'border-brand bg-brand-soft'
-                          : 'border-ink/10 hover:border-brand/40'
-                      }`}
-                    >
-                      <span className="block text-[13px] font-extrabold text-ink">
-                        {option.title}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-muted">
-                        {option.desc}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -945,7 +910,7 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
             </div>
           ) : null}
 
-          {tab === 'incoming' && user.role === 'organizer' ? (
+          {tab === 'incoming' && isOrganizer() ? (
             <div>
               <p className="text-sm font-extrabold text-ink">Входящие заявки на твои команды</p>
               {incoming.length === 0 ? (
@@ -964,13 +929,18 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                           <p className="text-[14px] font-extrabold text-ink">
                             {application.userName}
                           </p>
-                          <p className="mt-0.5 text-[12px] text-muted">
+                          <p className="mt-1 text-[12px] text-muted">
                             → команда «{application.teamTitle}» · {application.city}
                           </p>
-                          <p className="mt-1 text-[12px] text-muted">
-                            Telegram: {application.telegram || '—'} · Контакты:{' '}
-                            {application.contacts || '—'} · Рейтинг: {application.rating}/5
-                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted">
+                            {application.telegram ? (
+                              <TelegramField value={application.telegram} />
+                            ) : null}
+                            {application.contacts ? (
+                              <span>Контакты: {application.contacts}</span>
+                            ) : null}
+                            <span>Рейтинг: {application.rating}/5</span>
+                          </div>
                           {application.review ? (
                             <p className="mt-1 text-[12px] leading-snug text-muted">
                               Отклик: {application.review}

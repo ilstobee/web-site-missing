@@ -11,7 +11,7 @@ type Props = {
 }
 
 export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncoming, onOpenChat }: Props) {
-  const { user, db, logout, markAllNotificationsRead } = useApp()
+  const { user, db, logout, markAllNotificationsRead, isOrganizer } = useApp()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [dark, setDark] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -173,7 +173,7 @@ export function Header({ onOpenAuth, onOpenLK, onOpenApplications, onOpenIncomin
             ) : null}
           </div>
 
-          {user && user.role === 'organizer' ? (
+          {user && isOrganizer() ? (
             <button
               type="button"
               onClick={onOpenIncoming}

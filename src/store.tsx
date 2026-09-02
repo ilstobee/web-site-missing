@@ -285,6 +285,7 @@ type AppContextValue = {
     >,
   ): void
   setUserRole(role: UserRole): void
+  isOrganizer(): boolean
   changePassword(current: string, next: string): string | null
   changeEmail(next: string): Promise<string | null>
   addReview(sphereId: string, rating: number, text: string): void
@@ -1034,6 +1035,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const isOrganizer = () => {
+      if (!user) return false
+      return (
+        db.customTeams.some((team) => team.creatorId === user.id) ||
+        db.pendingTeams.some((team) => team.creatorId === user.id)
+      )
+    }
+
     const addReview = (sphereId: string, rating: number, text: string) => {
       if (!user) return
       const review: Review = {
@@ -1589,6 +1598,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshVerification,
       updateProfile,
       setUserRole,
+      isOrganizer,
       changePassword,
       changeEmail,
       addReview,

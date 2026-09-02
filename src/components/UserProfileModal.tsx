@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useApp, dmChatId, type User } from '../store'
 import { getUserProfileFb } from '../firebase'
 import { SEEKING_OPTIONS } from '../matching'
+import { TelegramField } from './TelegramField'
 
 type Props = {
   userId: string | null
@@ -30,7 +31,6 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
   const { user, userRating } = useApp()
   const [profile, setProfile] = useState<Partial<User> | null>(null)
   const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!userId) {
@@ -55,17 +55,6 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
 
   const tg = (profile?.telegram ?? '').replace(/^@/, '').trim()
   const isSelf = user?.id === userId
-
-  const copyTelegram = () => {
-    if (!tg) return
-    const link = `https://t.me/${tg}`
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(link).then(() => {
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 1500)
-      }).catch(() => {})
-    }
-  }
 
   const startChat = () => {
     if (!user || !userId) return
@@ -136,27 +125,9 @@ export function UserProfileModal({ userId, onClose, onOpenChat }: Props) {
               <div className="mt-5 space-y-4">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Telegram</p>
-                  {tg ? (
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <a
-                        href={`https://t.me/${tg}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-semibold text-brand underline"
-                      >
-                        @{tg}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={copyTelegram}
-                        className="rounded-full border border-brand/30 px-3 py-1 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"
-                      >
-                        {copied ? 'Скопировано!' : 'Копировать'}
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-ink">—</p>
-                  )}
+                  <div className="mt-1.5">
+                    {tg ? <TelegramField value={tg} /> : <p className="text-sm text-ink">—</p>}
+                  </div>
                 </div>
 
                 {field('Ищет', SEEKING_OPTIONS.find((item) => item.value === profile.seeking)?.label)}
