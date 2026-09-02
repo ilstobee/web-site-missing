@@ -1136,13 +1136,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (candidate) => candidate.teamId === teamId && candidate.userId === user?.id,
       )
       if (!application) return
-      mutate((d) => ({
-        ...d,
-        applications: d.applications.filter((candidate) => candidate.id !== application.id),
-      }))
-      if (firebaseEnabled) {
-        void deleteApplicationFb(application.id)
+      if (!firebaseEnabled) {
+        mutate((d) => ({
+          ...d,
+          applications: d.applications.filter((candidate) => candidate.id !== application.id),
+        }))
+        return
       }
+      deleteApplicationFb(application.id)
+        .then(() => {
+          mutate((d) => ({
+            ...d,
+            applications: d.applications.filter((candidate) => candidate.id !== application.id),
+          }))
+        })
+        .catch((error) => {
+          console.error('[missing] Не удалось отозвать заявку:', error)
+          window.alert('Не удалось отозвать заявку. Проверь, что правила доступа в Firebase задеплоены (firebase deploy --only firestore:rules).')
+        })
     }
 
     const setApplicationStatus = (id: string, status: 'accepted' | 'rejected') => {
