@@ -50,12 +50,13 @@ export function customToTeam(
     city: team.city,
     difficulty: team.difficulty,
     creatorId: team.creatorId,
+    sphereId: team.sphereId,
   }
 }
 
 
 export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
-  const { db, user, withdrawApplication } = useApp()
+  const { db, user, withdrawApplication, recordVisit } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
 
   const [people, setPeople] = useState('all')
@@ -98,6 +99,7 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
   )
 
   const handleApply = (team: Team) => {
+    if (team.sphereId) recordVisit(team.sphereId)
     if (!user) {
       onOpenAuth()
       return
@@ -157,7 +159,10 @@ export function FeaturedTeams({ city, onOpenAuth, onOpenChat }: Props) {
                 onWithdraw={(item) => withdrawApplication(item.id)}
                 onApply={handleApply}
                 onReview={setReviewTeam}
-                onChat={(item) => onOpenChat(`team:${item.id}`)}
+                onChat={(item) => {
+                  if (item.sphereId) recordVisit(item.sphereId)
+                  onOpenChat(`team:${item.id}`)
+                }}
               />
             ))}
           </div>

@@ -15,7 +15,7 @@ export function RecommendedTeams({
   city: string
   onOpenChat(chatId: string): void
 }) {
-  const { db, user, withdrawApplication } = useApp()
+  const { db, user, withdrawApplication, recordVisit } = useApp()
   const scroller = useRef<HTMLDivElement>(null)
   const [applyTeam, setApplyTeam] = useState<Team | null>(null)
   const [reviewTeam, setReviewTeam] = useState<Team | null>(null)
@@ -60,9 +60,15 @@ export function RecommendedTeams({
                   team={team}
                   applied={appliedTeamIds.has(team.id)}
                   onWithdraw={(item) => withdrawApplication(item.id)}
-                  onApply={setApplyTeam}
+                  onApply={(team) => {
+                    if (team.sphereId) recordVisit(team.sphereId)
+                    setApplyTeam(team)
+                  }}
                   onReview={setReviewTeam}
-                  onChat={(item) => onOpenChat(`team:${item.id}`)}
+                  onChat={(item) => {
+                    if (item.sphereId) recordVisit(item.sphereId)
+                    onOpenChat(`team:${item.id}`)
+                  }}
                 />
               ))}
             </div>

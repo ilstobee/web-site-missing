@@ -23,7 +23,7 @@ export function QuickMatch({
   onOpenAuth: () => void
   onOpenChat: (chatId?: string) => void
 }) {
-  const { user, db } = useApp()
+  const { user, db, recordVisit } = useApp()
   const [selected, setSelected] = useState<string[]>(user?.interests ?? [])
   const [seeking, setSeeking] = useState<Seeking>(user?.seeking || 'team')
   const [submitted, setSubmitted] = useState(false)
@@ -42,6 +42,7 @@ export function QuickMatch({
             city: team.city,
             difficulty: team.difficulty,
             description: team.description,
+            sphereId: team.sphereId,
           }),
         ),
     [db.customTeams, city],
@@ -197,6 +198,7 @@ export function QuickMatch({
                           onOpenAuth()
                           return
                         }
+                        if (team.sphereId) recordVisit(team.sphereId)
                         onOpenChat(`team:${team.id}`)
                       }}
                       className="mt-4 rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-dark"

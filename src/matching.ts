@@ -53,9 +53,10 @@ type MatchTeam = {
   city: string
   difficulty: string
   description: string
+  sphereId?: string
 }
 
-export function toMatchTeam(team: Team | { id: string; title: string; category: string; tags: string[]; city: string; difficulty: string; description: string }): MatchTeam {
+export function toMatchTeam(team: Team | { id: string; title: string; category: string; tags: string[]; city: string; difficulty: string; description: string; sphereId?: string }): MatchTeam {
   return {
     id: team.id,
     title: team.title,
@@ -64,6 +65,7 @@ export function toMatchTeam(team: Team | { id: string; title: string; category: 
     city: team.city ?? '',
     difficulty: team.difficulty ?? '',
     description: team.description ?? '',
+    sphereId: team.sphereId,
   }
 }
 

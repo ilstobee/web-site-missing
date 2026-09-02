@@ -5,9 +5,31 @@ type Props = {
   className?: string
 }
 
-function copyText(text: string) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    void navigator.clipboard.writeText(text).catch(() => {})
+function copyText(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).then(
+      () => true,
+      () => fallbackCopy(text),
+    )
+  }
+  return Promise.resolve(fallbackCopy(text))
+}
+
+function fallbackCopy(text: string): boolean {
+  try {
+    const area = document.createElement('textarea')
+    area.value = text
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.top = '-9999px'
+    document.body.appendChild(area)
+    area.select()
+    area.setSelectionRange(0, area.value.length)
+    const ok = document.execCommand('copy')
+    document.body.removeChild(area)
+    return ok
+  } catch {
+    return false
   }
 }
 
@@ -17,9 +39,10 @@ export function TelegramField({ value, className }: Props) {
   if (!tg) return null
 
   const handleCopy = () => {
-    copyText(`https://t.me/${tg}`)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
+    void copyText(`https://t.me/${tg}`).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    })
   }
 
   return (

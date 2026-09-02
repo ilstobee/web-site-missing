@@ -21,7 +21,7 @@ const UserProfileModal = lazy(() =>
 import { VerifyBanner } from './components/VerifyBanner'
 
 export default function App() {
-  const { recordVisit, user, emailVerified, db } = useApp()
+  const { user, emailVerified, db } = useApp()
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
@@ -114,7 +114,6 @@ export default function App() {
 
   const handleSphereChange = (id: string) => {
     setActiveSphere(id)
-    recordVisit(id)
   }
 
   useEffect(() => {

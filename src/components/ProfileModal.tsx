@@ -402,8 +402,24 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                       type="button"
                       onClick={() => {
                         const tg = telegram.replace(/^@/, '').trim()
-                        if (tg && typeof navigator !== 'undefined' && navigator.clipboard) {
-                          void navigator.clipboard.writeText(`https://t.me/${tg}`).catch(() => {})
+                        if (!tg) return
+                        const link = `https://t.me/${tg}`
+                        if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+                          void navigator.clipboard.writeText(link).catch(() => {})
+                        } else {
+                          try {
+                            const area = document.createElement('textarea')
+                            area.value = link
+                            area.setAttribute('readonly', '')
+                            area.style.position = 'fixed'
+                            area.style.top = '-9999px'
+                            document.body.appendChild(area)
+                            area.select()
+                            document.execCommand('copy')
+                            document.body.removeChild(area)
+                          } catch {
+                            // ignore
+                          }
                         }
                       }}
                       className="shrink-0 rounded-xl border border-brand/30 px-3 py-2.5 text-[12px] font-semibold text-brand transition hover:bg-brand-soft"

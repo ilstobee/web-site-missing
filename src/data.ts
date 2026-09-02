@@ -36,6 +36,7 @@ export type Team = {
   city: string
   difficulty: 'Легко' | 'Средне' | 'Сложно'
   creatorId?: string
+  sphereId?: string
 }
 
 const av = [
