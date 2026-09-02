@@ -832,14 +832,25 @@ export function ProfileModal({ open, onClose, initialTab, onOpenChat }: Props) {
                     {myParticipations.map((participation) => (
                       <div
                         key={participation.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-cream px-4 py-3"
+                        className="rounded-2xl bg-cream px-4 py-3"
                       >
-                        <p className="min-w-0 text-[13px] font-bold text-ink">
-                          {participation.teamTitle}
-                        </p>
-                        <span className="shrink-0 rounded-full bg-brand-soft px-3 py-1 text-[11px] font-bold text-brand">
-                          Принят
-                        </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="min-w-0 text-[13px] font-bold text-ink">
+                            {participation.teamTitle}
+                          </p>
+                          <span className="shrink-0 rounded-full bg-brand-soft px-3 py-1 text-[11px] font-bold text-brand">
+                            Принят
+                          </span>
+                        </div>
+                        {participation.creatorId ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] text-muted">Организатор:</span>
+                            <Stars
+                              value={ratingOf(participation.creatorId)}
+                              onChange={(n) => rateUser(participation.creatorId, participation.teamId, n)}
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
