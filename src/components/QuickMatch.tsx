@@ -132,6 +132,9 @@ export function QuickMatch({
             )
           })}
         </div>
+        <p className="mt-1.5 text-[11px] text-muted">
+          {SEEKING_OPTIONS.find((option) => option.value === seeking)?.hint}
+        </p>
 
         <button
           type="button"

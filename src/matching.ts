@@ -28,9 +28,9 @@ export const INTEREST_OPTIONS: string[] = [
 ]
 
 export const SEEKING_OPTIONS: { value: Seeking; label: string; hint: string }[] = [
-  { value: 'team', label: 'Команду', hint: 'присоединиться к готовой команде' },
-  { value: 'people', label: 'Людей', hint: 'найти единомышленников' },
-  { value: 'project', label: 'Проект', hint: 'собрать свою команду под идею' },
+  { value: 'team', label: 'Команду', hint: 'найти готовую команду и присоединиться к ней как участник' },
+  { value: 'people', label: 'Людей', hint: 'найти отдельных людей для общения и совместной работы' },
+  { value: 'project', label: 'Проект', hint: 'присоединиться к проекту или собрать команду под свою идею' },
 ]
 
 export const LEVEL_OPTIONS: string[] = ['Новичок', 'Любитель', 'Профи']
